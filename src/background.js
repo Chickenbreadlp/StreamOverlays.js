@@ -1,8 +1,12 @@
 'use strict'
 
-import { app, protocol, BrowserWindow } from 'electron'
+import * as path from "path";
+import { app, protocol, BrowserWindow, ipcMain, dialog } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
+
+import * as streamlets from "@/nodeContext/streamlets";
+
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
 // Scheme must be registered before the app is ready
@@ -10,9 +14,11 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { secure: true, standard: true } }
 ])
 
+let win;
+
 async function createWindow() {
   // Create the browser window.
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -20,9 +26,11 @@ async function createWindow() {
       // Use pluginOptions.nodeIntegration, leave this alone
       // See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
       nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
-      contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION
-    }
-  })
+      contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION,
+      preload: path.join(__dirname, 'preload.js')
+    },
+    frame: false
+  });
 
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
@@ -33,21 +41,35 @@ async function createWindow() {
     // Load the index.html when not in development
     win.loadURL('app://./index.html')
   }
+
+  if (!streamlets.isServiceRunning()) {
+    streamlets.startAll();
+  }
+
+  win.addListener("maximize", () => {
+    win.webContents.send('maximize', true);
+  })
+  win.addListener('unmaximize', () => {
+    win.webContents.send('maximize', false);
+  })
+}
+
+// Function to close all servers & listeners and then force-quit Electron
+function quitApp() {
+  streamlets.closeAll().then(() => {
+    process.exit(0);
+  });
 }
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
-  // On macOS it is common for applications and their menu bar
-  // to stay active until the user quits explicitly with Cmd + Q
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  quitApp();
 })
 
 app.on('activate', () => {
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 })
 
 // This method will be called when Electron has finished
@@ -65,17 +87,52 @@ app.on('ready', async () => {
   createWindow()
 })
 
+// Configure IPC functions to minimize and maximize window
+ipcMain.on('close', () => {
+  if (win) {
+    const res = dialog.showMessageBoxSync(
+        win,
+        {
+          type: 'question',
+          buttons: ['no', 'yes'],
+          defaultId: 1,
+          title: 'Are you sure?',
+          message: 'Closing this window will also stop all Streamlets from working until restarted.\nDo you want to proceed?'
+        }
+    )
+
+    if (res === 1) {
+      quitApp();
+    }
+  }
+});
+ipcMain.on('minimize', () => {
+  if (win) {
+    win.minimize();
+  }
+});
+ipcMain.on('maximize', (event, args) => {
+  if (win) {
+    if (args) {
+      win.maximize();
+    }
+    else {
+      win.unmaximize();
+    }
+  }
+});
+
 // Exit cleanly on request from parent process in development mode.
 if (isDevelopment) {
   if (process.platform === 'win32') {
     process.on('message', (data) => {
       if (data === 'graceful-exit') {
-        app.quit()
+        quitApp();
       }
     })
   } else {
     process.on('SIGTERM', () => {
-      app.quit()
+      quitApp();
     })
   }
 }
