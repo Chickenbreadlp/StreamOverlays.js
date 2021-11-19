@@ -4,7 +4,9 @@ let server;
 let sockets = [];
 
 function startServer(port) {
+    console.log(`Starting up WS on port ${port}`);
     server = new WebSocket.Server({ port: port });
+
     server.on('connection', (ws) => {
         sockets.push(ws);
         ws.send('TODO');

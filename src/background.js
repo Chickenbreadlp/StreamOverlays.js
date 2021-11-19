@@ -5,9 +5,12 @@ import { app, protocol, BrowserWindow, ipcMain, dialog } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 
+import * as config from "@/nodeContext/config";
 import * as streamlets from "@/nodeContext/streamlets";
 
-const isDevelopment = process.env.NODE_ENV !== 'production'
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+streamlets.setConfig(config);
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
