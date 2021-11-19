@@ -1,5 +1,7 @@
 {
   "name": "streamlets",
+  "description": "Like Applets, but for your live streams",
+  "author": "Chickenbread",
   "version": "0.1.0",
   "private": true,
   "scripts": {
