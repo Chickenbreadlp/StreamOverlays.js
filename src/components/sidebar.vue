@@ -2,7 +2,7 @@
   <v-navigation-drawer
     v-model="open"
     app
-    :dark="dark"
+    dark
   >
     <v-list-item two-line>
       <v-list-item-content>
@@ -38,18 +38,6 @@ export default {
   data: () => ({
     dark: false
   }),
-  mounted() {
-    if (!localStorage.sTheme) {
-      localStorage.sTheme = 'navbar';
-    }
-
-    if (localStorage.sTheme === 'navbar') {
-      this.dark = true;
-    }
-    if (localStorage.sTheme === 'dark') {
-      this.$vuetify.theme.dark = true;
-    }
-  },
   computed: {
     open: {
       get() {

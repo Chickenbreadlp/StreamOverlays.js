@@ -28,6 +28,7 @@
       app
       color="primary"
       dark
+      min-height="64"
     >
       <v-app-bar-nav-icon
         @click="sidebarOpen = !sidebarOpen"
@@ -58,6 +59,21 @@ export default {
     accountDlg: false
   }),
   mounted() {
+    if (!localStorage.sTheme) {
+      const themeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+      if (themeQuery.matches) {
+        localStorage.sTheme = 'dark';
+      }
+      else {
+        localStorage.sTheme = 'light';
+      }
+    }
+
+    if (localStorage.sTheme === 'dark') {
+      this.$vuetify.theme.dark = true;
+    }
+
     this.sidebarOpen = !this.$vuetify.breakpoint.mobile;
 
     window.ipc.receive('maximize', (wasMaximized) => {
