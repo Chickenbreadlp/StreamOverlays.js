@@ -27,6 +27,7 @@ function requestTwitchToken(parentWin, channel) {
             fullscreenable: false,
             title: 'Login to Twitch'
         });
+        win.setMenuBarVisibility(false);
 
         let url = 'https://id.twitch.tv/oauth2/authorize';
         url += `?client_id=${clientId}`;

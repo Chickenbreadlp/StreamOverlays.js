@@ -34,6 +34,12 @@
         @click="sidebarOpen = !sidebarOpen"
       />
       <v-spacer></v-spacer>
+      <v-btn
+        icon
+        @click="settingsDlg = true"
+      >
+        <v-icon>mdi-cog</v-icon>
+      </v-btn>
     </v-app-bar>
 
     <v-main>
@@ -43,6 +49,9 @@
     <account-dialog
       v-model="accountDlg"
     />
+    <settings
+      v-model="settingsDlg"
+    />
   </v-app>
 </template>
 
@@ -50,13 +59,15 @@
 
 import Sidebar from "@/components/sidebar";
 import AccountDialog from "@/components/accountDialog";
+import Settings from "@/components/settings";
 export default {
   name: 'App',
-  components: {AccountDialog, Sidebar},
+  components: {Settings, AccountDialog, Sidebar},
   data: () => ({
     sidebarOpen: false,
     maximized: false,
-    accountDlg: false
+    accountDlg: false,
+    settingsDlg: false
   }),
   mounted() {
     if (!localStorage.sTheme) {

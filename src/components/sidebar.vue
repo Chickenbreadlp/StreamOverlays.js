@@ -15,7 +15,7 @@
       </v-list-item-content>
       <v-list-item-action>
         <v-btn icon @click="openAccountDlg">
-          <v-icon>mdi-account</v-icon>
+          <v-icon>mdi-account-cog</v-icon>
         </v-btn>
       </v-list-item-action>
     </v-list-item>

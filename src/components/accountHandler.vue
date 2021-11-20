@@ -6,7 +6,7 @@
     <v-col cols="12">
       <v-row>
         <v-spacer />
-        <v-col cols="auto" class="text-right">
+        <v-col cols="auto" class="text-right pt-4">
           <v-avatar size="80">
             <img alt="Profile Picture" :src="user[keys.pfp]">
           </v-avatar>
