@@ -1,5 +1,7 @@
 const express = require('express');
-const twitchAuth = require('../auth');
+const twitchAuth = require('../tokenCatcher');
+const { version, name } = require('./../../../package.json');
+console.log(version, name);
 
 // TODO: implement code for streamlets
 
@@ -28,6 +30,17 @@ server.use((req, res, next) => {
 
     next();
 });
+server.use('/internal', (req, res, next) => {
+    const ua = req.headers['user-agent'].split(' ');
+
+    if (ua.indexOf(`${name}/${version}`) >= 0) {
+        next();
+    }
+    else {
+        res.respond(null, 403);
+    }
+})
+
 
 server.get('/', (req, res) => {
     res.send('Hello World!');

@@ -8,6 +8,13 @@ import '@mdi/font/css/materialdesignicons.css'
 
 Vue.config.productionTip = false
 
+Vue.prototype.$serviceKeys = {
+  twitch: {
+    username: 'display_name',
+    pfp: 'profile_image_url'
+  }
+}
+
 new Vue({
   router,
   store,

@@ -7,10 +7,10 @@
     <v-list-item two-line>
       <v-list-item-content>
         <v-list-item-title class="text-h6">
-          Not logged in
+          {{ mainUser[this.service.keys.username] || 'Please log in' }}
         </v-list-item-title>
         <v-list-item-subtitle>
-          Please log in
+          {{ botUser[this.service.keys.username] || 'No bot account configured' }}
         </v-list-item-subtitle>
       </v-list-item-content>
       <v-list-item-action>
@@ -21,7 +21,6 @@
     </v-list-item>
     <v-divider />
     <v-list>
-
     </v-list>
   </v-navigation-drawer>
 </template>
@@ -46,6 +45,19 @@ export default {
       set(value) {
         this.$emit('input', value);
       }
+    },
+    service() {
+      const name = this.$store.state.currentService || 'twitch';
+      return {
+        name,
+        keys: this.$serviceKeys[name]
+      };
+    },
+    mainUser() {
+      return this.$store.state[this.service.name].main.userInfo
+    },
+    botUser() {
+      return this.$store.state[this.service.name].bot.userInfo
     }
   },
   methods: {

@@ -6,7 +6,7 @@ let config;
 tokenSrv.get('/:service', (req, res) => {
     const page = `
 <script>
-    const url = "http://localhost:${req.portUsed}${req.baseUrl}/${req.params.service}";
+    const url = "http://localhost:${process.env.VUE_APP_STREAMLET_PORT}${req.baseUrl}/${req.params.service}";
 
     let xhr = new XMLHttpRequest();
     xhr.open("POST", url);
@@ -38,8 +38,11 @@ tokenSrv.get('/:service', (req, res) => {
     res.send(page);
 });
 tokenSrv.post('/:service', (req, res) => {
-    config.parseAuthData(req.params.service, req.body);
-    res.respond(null, 200);
+    if (config.parseAuthData(req.params.service, req.body)) {
+        res.respond(null, 200);
+        return;
+    }
+    res.respond(null, 400);
 })
 
 function setupConfig(configObj) {

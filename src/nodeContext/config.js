@@ -2,14 +2,20 @@ const fs = require('fs');
 
 // Default config
 const config = {
-    slPort: 28007,
-    wsPort: 28008
 }
 
 const tokenStore = {
     twitch: {
-        token: '',
-        tokenType: ''
+        main: {
+            token: '',
+            tokenType: '',
+            pending: false
+        },
+        bot: {
+            token: '',
+            tokenType: '',
+            pending: false
+        }
     }
 }
 
@@ -31,55 +37,62 @@ function load() {
     }
 }
 
-function getSlPort() {
-    return config.slPort;
-}
-function setSlPort(newPort) {
-    const nPort = Number(newPort);
-    if (!isNaN(nPort)) {
-        config.slPort = nPort;
-
-        save();
-        return true;
+function clearAuthData(service, channel) {
+    console.log(tokenStore)
+    const s = tokenStore[service][channel];
+    if (s) {
+        s.token = '';
+        s.tokenType = '';
     }
-
-    return false;
+    console.log(tokenStore)
 }
-
-function getWsPort() {
-    return config.wsPort;
-}
-function setWsPort(newPort) {
-    const nPort = Number(newPort);
-    if (!isNaN(nPort)) {
-        config.wsPort = nPort;
-
-        save();
-        return true;
+function setPendingRequest(service, channel, pending) {
+    const s = tokenStore[service][channel];
+    if (s) {
+        s.pending = pending;
     }
-
-    return false;
 }
-
 function parseAuthData(service, authData) {
+    console.log(service, authData);
     if (service === 'twitch') {
-        tokenStore.twitch.token = authData.access_token || '';
-        tokenStore.twitch.tokenType = authData.token_type || '';
+        const channel = authData.state;
+        if (channel) {
+            console.log(tokenStore.twitch[channel])
+            if (tokenStore.twitch[channel].pending) {
+                tokenStore.twitch[channel].token = authData.access_token || '';
+                tokenStore.twitch[channel].tokenType = authData.token_type || '';
+                tokenStore.twitch[channel].pending = false;
+                return true;
+            }
+        }
     }
-
     console.log(tokenStore);
+    return false;
+}
+function loadToken(service, channel, token) {
+    const s = tokenStore[service][channel];
+    if (s) {
+        s.token = token.token;
+        s.tokenType = token.tokenType;
+        s.pending = token.pending;
+    }
+}
+function getToken(service, channel) {
+    const s = tokenStore[service][channel];
+    if (s) {
+        return s;
+    }
+    else {
+        return null;
+    }
 }
 
 load();
 
 module.exports = {
-    slPort: {
-        get: getSlPort,
-        set: setSlPort,
-    },
-    wsPort: {
-        get: getWsPort,
-        set: setWsPort
-    },
-    parseAuthData
+    clearAuthData,
+    setPendingRequest,
+    parseAuthData,
+    loadToken,
+    getToken
 }

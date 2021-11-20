@@ -7,10 +7,12 @@ import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 
 import * as config from "@/nodeContext/config";
 import * as streamlets from "@/nodeContext/streamlets";
+import * as twitch from "@/nodeContext/twitch/twitchAPI";
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 streamlets.setConfig(config);
+twitch.setup(config);
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
@@ -22,10 +24,10 @@ let win;
 async function createWindow() {
   // Create the browser window.
   win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1000,
+    height: 700,
     webPreferences: {
-      
+      devTools: isDevelopment,
       // Use pluginOptions.nodeIntegration, leave this alone
       // See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
       nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
@@ -124,6 +126,28 @@ ipcMain.on('maximize', (event, args) => {
     }
   }
 });
+
+ipcMain.on('auth', (event, args) => {
+  if (win) {
+    switch (args.cmd) {
+      case 'request':
+        if (args.service === 'twitch') {
+          twitch.auth.requestToken(win, args.channel).then((token) => {
+            win.webContents.send('auth', { service: 'twitch', token });
+          }).catch(() => {
+            win.webContents.send('auth', { service: 'twitch', error: 'Cancelled Token Request' });
+          });
+        }
+        break;
+      case 'load':
+        config.loadToken(args.service, args.channel, args.token);
+        break;
+      case 'clear':
+        config.clearAuthData(args.service, args.channel);
+        break;
+    }
+  }
+})
 
 // Exit cleanly on request from parent process in development mode.
 if (isDevelopment) {
