@@ -33,7 +33,16 @@ function requestTwitchToken(parentWin, channel) {
         url += `?client_id=${clientId}`;
         url += `&redirect_uri=${process.env.VUE_APP_TWITCH_REDIRECT}`;
         url += `&response_type=token`;
-        url += `&scope=chat:read chat:edit`;
+
+        let scopes;
+        if (channel.toLowerCase() === 'bot') {
+            scopes = process.env.VUE_APP_TWITCH_BOT_SCOPES;
+        }
+        else {
+            scopes = process.env.VUE_APP_TWITCH_MAIN_SCOPES;
+        }
+
+        url += `&scope=${scopes}`;
         url += `&force_verify=true`;
         url += `&state=${channel}`;
 
