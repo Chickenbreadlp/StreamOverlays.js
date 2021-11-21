@@ -144,15 +144,19 @@ ipcMain.on('auth', (event, args) => {
     switch (args.cmd) {
       case 'request':
         if (args.service === 'twitch') {
-          twitch.auth.requestToken(win, args.channel).then((token) => {
-            win.webContents.send('auth', { service: 'twitch', token });
+          twitch.auth.requestToken(win, args.channel).then((info) => {
+            win.webContents.send('auth', { service: 'twitch', type: 'request', channel: args.channel, info });
           }).catch(() => {
-            win.webContents.send('auth', { service: 'twitch', error: 'Cancelled Token Request' });
+            win.webContents.send('auth', { service: 'twitch', type: 'request', error: 'Cancelled Token Request' });
           });
         }
         break;
       case 'load':
         config.loadToken(args.service, args.channel, args.token);
+        twitch.requests.getUserInfo(config.getToken(args.service, args.channel)).then(info => {
+          config.setUserInfo(args.service, args.channel, info);
+          win.webContents.send('auth', { service: 'twitch', type: 'load', channel: args.channel, info });
+        }).catch(() => {});
         break;
       case 'clear':
         config.clearAuthData(args.service, args.channel);

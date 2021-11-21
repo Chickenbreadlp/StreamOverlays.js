@@ -18,6 +18,12 @@ const tokenStore = {
         }
     }
 }
+const infoStore = {
+    twitch: {
+        main: {},
+        bot: {}
+    }
+}
 
 function save() {
     fs.writeFileSync('./config.json', JSON.stringify(config), { encoding: 'utf8' });
@@ -53,11 +59,9 @@ function setPendingRequest(service, channel, pending) {
     }
 }
 function parseAuthData(service, authData) {
-    console.log(service, authData);
     if (service === 'twitch') {
         const channel = authData.state;
         if (channel) {
-            console.log(tokenStore.twitch[channel])
             if (tokenStore.twitch[channel].pending) {
                 tokenStore.twitch[channel].token = authData.access_token || '';
                 tokenStore.twitch[channel].tokenType = authData.token_type || '';
@@ -66,7 +70,6 @@ function parseAuthData(service, authData) {
             }
         }
     }
-    console.log(tokenStore);
     return false;
 }
 function loadToken(service, channel, token) {
@@ -87,6 +90,13 @@ function getToken(service, channel) {
     }
 }
 
+function setUserInfo(service, channel, info) {
+    infoStore[service][channel] = info;
+}
+function getUserInfo(service, channel) {
+    return { ...infoStore[service][channel] };
+}
+
 load();
 
 module.exports = {
@@ -94,5 +104,7 @@ module.exports = {
     setPendingRequest,
     parseAuthData,
     loadToken,
-    getToken
+    getToken,
+    setUserInfo,
+    getUserInfo
 }

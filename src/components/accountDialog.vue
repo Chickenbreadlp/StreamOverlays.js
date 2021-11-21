@@ -72,7 +72,7 @@
 </template>
 
 <script>
-import {mapActions, mapMutations} from "vuex";
+import {mapMutations} from "vuex";
 import AccountHandler from "@/components/accountHandler";
 
 export default {
@@ -85,10 +85,7 @@ export default {
     }
   },
   data: () => ({
-    requestingToken: {
-      active: false,
-      channel: ''
-    },
+    requestingToken: false,
     services: [
       {
         text: 'Twitch',
@@ -102,23 +99,33 @@ export default {
     this.readTokenFromLs('twitch', 'bot');
 
     window.ipc.receive('auth', (args) => {
-      if (args.token) {
-        const channel = this.requestingToken.channel;
-        localStorage.setItem(`${this.service}.${channel}`, JSON.stringify(args.token));
+      if (args.type === 'request') {
+        const info = args.info;
+        console.log(info);
+        localStorage.setItem(`${this.service}.${args.channel}`, JSON.stringify(info.token));
 
-        args.type = channel;
-        this.setUserToken(args);
-        this.requestUserInfo({
-          service: 'twitch',
-          type: channel
+        this.setUserToken({
+          service: args.service,
+          type: args.channel,
+          token: info.token
+        });
+        this.setUserInfo({
+          service: args.service,
+          type: args.channel,
+          info: info.userInfo
         });
 
-        this.requestingToken.channel = '';
-        this.requestingToken.active = false;
+        this.requestingToken = false;
+      }
+      else if (args.type === 'load') {
+        this.setUserInfo({
+          service: 'twitch',
+          type: args.channel,
+          info: args.info
+        });
       }
       else if (args.error === 'Cancelled Token Request') {
-        this.requestingToken.channel = '';
-        this.requestingToken.active = false;
+        this.requestingToken = false;
       }
     });
   },
@@ -142,10 +149,7 @@ export default {
   },
   methods: {
     requestToken(channel) {
-      this.requestingToken = {
-        active: true,
-        channel
-      }
+      this.requestingToken = true;
 
       window.ipc.send('auth', {
         service: this.service,
@@ -175,10 +179,6 @@ export default {
           type: channel,
           token
         });
-        this.requestUserInfo({
-          service: 'twitch',
-          type: channel
-        });
 
         window.ipc.send('auth', {
           service: 'twitch',
@@ -194,9 +194,6 @@ export default {
       "setUserInfo",
       "clearUser",
       "changeService"
-    ]),
-    ...mapActions([
-      "requestUserInfo"
     ])
   }
 }

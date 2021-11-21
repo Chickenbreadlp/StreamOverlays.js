@@ -1,4 +1,5 @@
 const auth = require('./auth');
+const requests = require('./requests');
 
 function setupConfig(configObj) {
     auth.setup(configObj);
@@ -7,5 +8,6 @@ function setupConfig(configObj) {
 
 module.exports = {
     setup: setupConfig,
-    auth
+    auth,
+    requests
 }

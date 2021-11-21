@@ -7,10 +7,10 @@
     <v-list-item two-line>
       <v-list-item-content>
         <v-list-item-title class="text-h6">
-          {{ mainUser[this.service.keys.username] || 'Please log in' }}
+          {{ mainUser.userInfo[this.service.keys.username] || (accLoading.main ? 'Loading...' : 'Please log in') }}
         </v-list-item-title>
         <v-list-item-subtitle>
-          {{ botUser[this.service.keys.username] || 'No bot account configured' }}
+          {{ botUser.userInfo[this.service.keys.username] || (accLoading.bot ? 'Loading...' : 'No bot account configured') }}
         </v-list-item-subtitle>
       </v-list-item-content>
       <v-list-item-action>
@@ -54,10 +54,16 @@ export default {
       };
     },
     mainUser() {
-      return this.$store.state[this.service.name].main.userInfo
+      return this.$store.state[this.service.name].main
     },
     botUser() {
-      return this.$store.state[this.service.name].bot.userInfo
+      return this.$store.state[this.service.name].bot
+    },
+    accLoading() {
+      return {
+        main: Object.keys(this.mainUser.userInfo).length === 0 && Object.keys(this.mainUser.token).length !== 0,
+        bot: Object.keys(this.botUser.userInfo).length === 0 && Object.keys(this.botUser.token).length !== 0
+      }
     }
   },
   methods: {

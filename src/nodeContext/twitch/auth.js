@@ -1,6 +1,6 @@
 const { BrowserWindow } = require('electron');
+const requests = require('./requests');
 
-const clientId = process.env.VUE_APP_TWITCH_CLIENT_ID;
 let config;
 
 function setupConfig(configObj) {
@@ -30,7 +30,7 @@ function requestTwitchToken(parentWin, channel) {
         win.setMenuBarVisibility(false);
 
         let url = 'https://id.twitch.tv/oauth2/authorize';
-        url += `?client_id=${clientId}`;
+        url += `?client_id=${requests.clientId}`;
         url += `&redirect_uri=${process.env.VUE_APP_TWITCH_REDIRECT}`;
         url += `&response_type=token`;
 
@@ -54,7 +54,15 @@ function requestTwitchToken(parentWin, channel) {
                 reject();
             }
             else {
-                resolve(token);
+                requests.getUserInfo(token).then((userInfo) => {
+                    config.setUserInfo('twitch', channel, userInfo);
+                    resolve({
+                        token,
+                        userInfo
+                    });
+                }).catch(() => {
+                    reject();
+                })
             }
         });
     });
