@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 
+let srvRunning = false;
 let server;
 let sockets = [];
 
@@ -20,14 +21,21 @@ function startServer(port) {
             sockets = sockets.filter(s => s !== ws);
         });
     });
+
+    srvRunning = true;
 }
 function closerServer() {
     return new Promise((resolve) => {
-        console.log('Closing WS');
-        server.close(() => {
-            console.log('Closed WS');
+        if (srvRunning && server) {
+            console.log('Closing WS');
+            server.close(() => {
+                console.log('Closed WS');
+                resolve();
+            });
+        }
+        else {
             resolve();
-        });
+        }
     });
 }
 

@@ -1,7 +1,6 @@
 const express = require('express');
 const twitchAuth = require('../tokenCatcher');
 const { version, name } = require('./../../../package.json');
-console.log(version, name);
 
 // TODO: implement code for streamlets
 

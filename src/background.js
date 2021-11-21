@@ -21,50 +21,61 @@ protocol.registerSchemesAsPrivileged([
 
 let win;
 
-async function createWindow() {
-  // Create the browser window.
-  win = new BrowserWindow({
-    width: 1000,
-    minWidth: 640,
-    height: 700,
-    minHeight: 480,
-    webPreferences: {
-      devTools: isDevelopment,
-      // Use pluginOptions.nodeIntegration, leave this alone
-      // See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
-      nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
-      contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION,
-      preload: path.join(__dirname, 'preload.js')
-    },
-    frame: false
-  });
-
-  if (process.env.WEBPACK_DEV_SERVER_URL) {
-    // Load the url of the dev server if in development mode
-    await win.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
-    if (!process.env.IS_TEST) win.webContents.openDevTools()
-  } else {
-    createProtocol('app')
-    // Load the index.html when not in development
-    win.loadURL('app://./index.html')
-  }
-
-  if (!streamlets.isServiceRunning()) {
-    streamlets.startAll();
-  }
-
-  win.addListener("maximize", () => {
-    win.webContents.send('maximize', true);
-  })
-  win.addListener('unmaximize', () => {
-    win.webContents.send('maximize', false);
-  })
-}
-
 // Function to close all servers & listeners and then force-quit Electron
 function quitApp() {
   streamlets.closeAll().then(() => {
     process.exit(0);
+  });
+}
+
+async function createWindow() {
+  await streamlets.checkPorts().then(async () => {
+    // Create the browser window.
+    win = new BrowserWindow({
+      width: 1000,
+      minWidth: 640,
+      height: 700,
+      minHeight: 480,
+      webPreferences: {
+        devTools: isDevelopment,
+        // Use pluginOptions.nodeIntegration, leave this alone
+        // See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
+        nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
+        contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION,
+        preload: path.join(__dirname, 'preload.js')
+      },
+      frame: false
+    });
+
+    if (process.env.WEBPACK_DEV_SERVER_URL) {
+      // Load the url of the dev server if in development mode
+      await win.loadURL(process.env.WEBPACK_DEV_SERVER_URL);
+      if (!process.env.IS_TEST) win.webContents.openDevTools();
+    } else {
+      createProtocol('app')
+      // Load the index.html when not in development
+      win.loadURL('app://./index.html');
+    }
+
+    if (!streamlets.isServiceRunning()) {
+      streamlets.startAll();
+    }
+
+    win.addListener("maximize", () => {
+      win.webContents.send('maximize', true);
+    });
+    win.addListener('unmaximize', () => {
+      win.webContents.send('maximize', false);
+    });
+  }).catch(() => {
+    dialog.showMessageBoxSync({
+      type: 'error',
+      buttons: ['OK'],
+      title: 'Ports in use!',
+      message: `For Streamlets to function correctly, the following ports need to be available: ${process.env.VUE_APP_REQUIRED_PORTS}
+Since one or more of these ports seems to be in use, this application will now quit.`
+    });
+    quitApp();
   });
 }
 
@@ -74,8 +85,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('activate', () => {
-  // On macOS it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 })
 
@@ -129,6 +138,7 @@ ipcMain.on('maximize', (event, args) => {
   }
 });
 
+// Other IPC functions
 ipcMain.on('auth', (event, args) => {
   if (win) {
     switch (args.cmd) {

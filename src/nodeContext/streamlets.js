@@ -1,7 +1,24 @@
+const net = require('net');
+
 const componentProvider = require('./streamlets/componentProvider');
 const dataProvider = require('./streamlets/dataProvider');
 
 let running = false;
+
+function isPortTaken(port) {
+    return new Promise((resolve, reject) => {
+        const tester = net.createServer()
+            .once('error', function (err) {
+                if (err.code !== 'EADDRINUSE') reject(err);
+                reject(false);
+            })
+            .once('listening', function() {
+                tester.once('close', function() { resolve(true); })
+                    .close()
+            })
+            .listen(port)
+    });
+}
 
 function setConfig(configObj) {
     componentProvider.setup(configObj);
@@ -12,8 +29,18 @@ function startServers() {
     componentProvider.start(process.env.VUE_APP_STREAMLET_PORT);
 }
 
+function checkPorts() {
+    const checks = [
+        isPortTaken(process.env.VUE_APP_WEB_SOCKET_PORT),
+        isPortTaken(process.env.VUE_APP_STREAMLET_PORT)
+    ];
+
+    return Promise.all(checks);
+}
+
 module.exports = {
     setConfig,
+    checkPorts,
     startAll: startServers,
     closeAll: () => {
         return Promise.all([
