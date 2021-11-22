@@ -1,6 +1,6 @@
 {
-  "name": "streamlets",
-  "description": "Like Applets, but for your live streams",
+  "name": "streamoverlays.js",
+  "description": "An App to run your own reactive Stream Overlay components",
   "author": "Chickenbread",
   "version": "0.1.0",
   "private": true,
