@@ -99,20 +99,23 @@ export default {
     this.readTokenFromLs('twitch', 'bot');
 
     window.ipc.receive('auth', (args) => {
-      if (args.type === 'request') {
-        const info = args.info;
-        console.log(info);
-        localStorage.setItem(`${this.service}.${args.channel}`, JSON.stringify(info.token));
+      if (args.error === 'Cancelled Token Request') {
+        this.requestingToken = false;
+      }
+      else if (args.type === 'request') {
+        const data = args.data;
+        console.log(data);
+        localStorage.setItem(`${this.service}.${args.channel}`, JSON.stringify(data.token));
 
         this.setUserToken({
           service: args.service,
           type: args.channel,
-          token: info.token
+          token: data.token
         });
         this.setUserInfo({
           service: args.service,
           type: args.channel,
-          info: info.userInfo
+          info: data.userInfo
         });
 
         this.requestingToken = false;
@@ -123,9 +126,6 @@ export default {
           type: args.channel,
           info: args.info
         });
-      }
-      else if (args.error === 'Cancelled Token Request') {
-        this.requestingToken = false;
       }
     });
   },
@@ -172,7 +172,10 @@ export default {
 
     readTokenFromLs(service, channel) {
       const lsToken = localStorage.getItem(`${service}.${channel}`);
-      if (String(lsToken).substr(0,1) === '{') {
+      if (
+        String(lsToken).substr(0,1) === '{' ||
+        String(lsToken).substr(0,1) === '"'
+      ) {
         const token = JSON.parse(lsToken);
         this.setUserToken({
           service: service,

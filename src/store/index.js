@@ -7,11 +7,11 @@ export default new Vuex.Store({
   state: {
     twitch: {
       main: {
-        token: {},
+        token: '',
         userInfo: {}
       },
       bot: {
-        token: {},
+        token: '',
         userInfo: {}
       }
     },
@@ -22,7 +22,7 @@ export default new Vuex.Store({
       if (args.service === 'twitch') {
         if (
             (args.type === 'main' || args.type === 'bot')
-            && typeof args.token === 'object'
+            && typeof args.token === 'string'
         ) {
           store.twitch[args.type].token = args.token;
         }

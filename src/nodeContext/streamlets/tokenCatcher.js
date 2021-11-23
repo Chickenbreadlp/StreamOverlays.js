@@ -1,11 +1,12 @@
 const express = require('express');
 
 const tokenSrv = express();
-let config;
+let serviceManager;
 
 tokenSrv.get('/:service', (req, res) => {
     const page = `
 <script>
+    // For code hilighting: '
     const url = "http://localhost:${process.env.VUE_APP_STREAMLET_PORT}${req.baseUrl}/${req.params.service}";
 
     let xhr = new XMLHttpRequest();
@@ -15,7 +16,7 @@ tokenSrv.get('/:service', (req, res) => {
     xhr.setRequestHeader("Content-Type", "application/json");
 
     xhr.onreadystatechange = window.close;
-    
+
     let data = {};
     
     if (location.hash.length > 0) {
@@ -38,18 +39,18 @@ tokenSrv.get('/:service', (req, res) => {
     res.send(page);
 });
 tokenSrv.post('/:service', (req, res) => {
-    if (config.parseAuthData(req.params.service, req.body)) {
+    if (serviceManager.api.receiveToken(req.params.service, req.body)) {
         res.respond(null, 200);
         return;
     }
     res.respond(null, 400);
 })
 
-function setupConfig(configObj) {
-    config = configObj;
+function setupManager(manObj) {
+    serviceManager = manObj;
 }
 
 module.exports = {
     srv: tokenSrv,
-    setup: setupConfig
+    setup: setupManager
 }

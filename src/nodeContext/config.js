@@ -1,110 +1,106 @@
-const fs = require('fs');
-
-// Default config
-const config = {
-}
+const constants = require('../constants');
 
 const tokenStore = {
-    twitch: {
-        main: {
-            token: '',
-            tokenType: '',
-            pending: false
-        },
-        bot: {
-            token: '',
-            tokenType: '',
-            pending: false
-        }
+    pending: {
+        service: null,
+        channel: null
     }
-}
-const infoStore = {
-    twitch: {
-        main: {},
-        bot: {}
+};
+const infoStore = {};
+
+/* Internal Functions */
+function storeToken(service, channel, token) {
+    if (
+        tokenStore[service] === undefined ||
+        tokenStore[service] === null
+    ) {
+        tokenStore[service] = {};
     }
+
+    tokenStore[service][channel] = token;
 }
 
-function save() {
-    fs.writeFileSync('./config.json', JSON.stringify(config), { encoding: 'utf8' });
-}
-function load() {
-    if (fs.existsSync('./config.json')) {
-        const file = fs.readFileSync('./config.json', { encoding: 'utf8' });
-        const newConfig = JSON.parse(file);
+/* External Functions */
+function setPendingToken(service, channel) {
+    if (constants.isSupported(service)) {
+        if (tokenStore.pending.service === null) {
+            tokenStore.pending.service = service;
+            tokenStore.pending.channel = channel;
 
-        for (let key of Object.keys(newConfig)) {
-            // Suppressing ES-Lint here, as the app is developed with Node 14 and .hasOwn is not available
-            // eslint-disable-next-line no-prototype-builtins
-            if (config.hasOwnProperty(key)) {
-                config[key] = newConfig[key];
-            }
+            return true;
         }
     }
-}
 
-function clearAuthData(service, channel) {
-    console.log(tokenStore)
-    const s = tokenStore[service][channel];
-    if (s) {
-        s.token = '';
-        s.tokenType = '';
-    }
-    console.log(tokenStore)
-}
-function setPendingRequest(service, channel, pending) {
-    const s = tokenStore[service][channel];
-    if (s) {
-        s.pending = pending;
-    }
-}
-function parseAuthData(service, authData) {
-    if (service === 'twitch') {
-        const channel = authData.state;
-        if (channel) {
-            if (tokenStore.twitch[channel].pending) {
-                tokenStore.twitch[channel].token = authData.access_token || '';
-                tokenStore.twitch[channel].tokenType = authData.token_type || '';
-                tokenStore.twitch[channel].pending = false;
-                return true;
-            }
-        }
-    }
     return false;
 }
-function loadToken(service, channel, token) {
-    const s = tokenStore[service][channel];
-    if (s) {
-        s.token = token.token;
-        s.tokenType = token.tokenType;
-        s.pending = token.pending;
+function getPendingToken() {
+    return tokenStore.pending;
+}
+function receiveToken(service, token) {
+    if (
+        tokenStore.pending.service === service
+    ) {
+        storeToken(service, tokenStore.pending.channel, token);
+        tokenStore.pending.service = null;
+        tokenStore.pending.channel = null;
+        return true;
+    }
+
+    return false;
+}
+function setToken(service, channel, token) {
+    if (constants.isSupported(service)) {
+        storeToken(service, channel, token);
     }
 }
 function getToken(service, channel) {
-    const s = tokenStore[service][channel];
-    if (s) {
-        return s;
+    if (constants.isSupported(service)) {
+        if (
+            tokenStore[service] !== undefined &&
+            tokenStore[service] !== null
+        ) {
+            return tokenStore[service][channel];
+        }
     }
-    else {
-        return null;
-    }
+    
+    return null;
 }
 
 function setUserInfo(service, channel, info) {
-    infoStore[service][channel] = info;
+    if (constants.isSupported(service)) {
+        if (
+            infoStore[service] === undefined ||
+            infoStore[service] === null
+        ) {
+            infoStore[service] = {};
+        }
+        
+        infoStore[service][channel] = info;
+    }
 }
 function getUserInfo(service, channel) {
-    return { ...infoStore[service][channel] };
+    if (constants.isSupported(service)) {
+        if (
+            infoStore[service] !== undefined &&
+            infoStore[service] !== null
+        ) {
+            return infoStore[service][channel];
+        }
+    }
+
+    return null;
 }
 
-load();
-
 module.exports = {
-    clearAuthData,
-    setPendingRequest,
-    parseAuthData,
-    loadToken,
-    getToken,
-    setUserInfo,
-    getUserInfo
+    token: {
+        setPending: setPendingToken,
+        getPending: getPendingToken,
+        receive: receiveToken,
+        set: setToken,
+        get: getToken
+    },
+    userInfo: {
+        set: setUserInfo,
+        get: getUserInfo
+    }
 }

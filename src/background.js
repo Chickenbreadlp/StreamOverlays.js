@@ -4,15 +4,17 @@ import * as path from "path";
 import { app, protocol, BrowserWindow, ipcMain, dialog } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
+import { title } from '../package.json';
 
-import * as config from "@/nodeContext/config";
-import * as streamlets from "@/nodeContext/streamlets";
-import * as twitch from "@/nodeContext/twitch/twitchAPI";
+import * as constants from '@/constants';
+import * as config from '@/nodeContext/config';
+import * as streamlets from '@/nodeContext/streamlets';
+import * as serviceManager from '@/nodeContext/serviceManager';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
-streamlets.setConfig(config);
-twitch.setup(config);
+serviceManager.setupConfig(config);
+streamlets.setup(config, serviceManager);
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
@@ -72,7 +74,7 @@ async function createWindow() {
       type: 'error',
       buttons: ['OK'],
       title: 'Ports in use!',
-      message: `For Streamlets to function correctly, the following ports need to be available: ${process.env.VUE_APP_REQUIRED_PORTS}
+      message: `For ${title} to function correctly, the following ports need to be available: ${process.env.VUE_APP_REQUIRED_PORTS}
 Since one or more of these ports seems to be in use, this application will now quit.`
     });
     quitApp();
@@ -113,7 +115,7 @@ ipcMain.on('close', () => {
           buttons: ['no', 'yes'],
           defaultId: 1,
           title: 'Are you sure?',
-          message: 'Closing this window will also stop all Streamlets from working until restarted.\nDo you want to proceed?'
+          message: `Closing this window will also stop all streamlets from working until ${title} restarted.\nDo you want to proceed?`
         }
     )
 
@@ -140,26 +142,26 @@ ipcMain.on('maximize', (event, args) => {
 
 // Other IPC functions
 ipcMain.on('auth', (event, args) => {
-  if (win) {
+  if (win && constants.isSupported(args.service)) {
     switch (args.cmd) {
       case 'request':
-        if (args.service === 'twitch') {
-          twitch.auth.requestToken(win, args.channel).then((info) => {
-            win.webContents.send('auth', { service: 'twitch', type: 'request', channel: args.channel, info });
-          }).catch(() => {
-            win.webContents.send('auth', { service: 'twitch', type: 'request', error: 'Cancelled Token Request' });
-          });
-        }
+        serviceManager.api.requestToken(win, args.channel).then((data) => {
+          win.webContents.send('auth', { service: 'twitch', type: 'request', channel: args.channel, data });
+        }).catch(() => {
+          win.webContents.send('auth', { service: 'twitch', type: 'request', error: 'Cancelled Token Request' });
+        });
         break;
       case 'load':
-        config.loadToken(args.service, args.channel, args.token);
-        twitch.requests.getUserInfo(config.getToken(args.service, args.channel)).then(info => {
-          config.setUserInfo(args.service, args.channel, info);
-          win.webContents.send('auth', { service: 'twitch', type: 'load', channel: args.channel, info });
-        }).catch(() => {});
+        config.token.set(args.service, args.channel, args.token);
+        if (serviceManager.getCurrentService() === args.service) {
+          serviceManager.api.getUserInfo(args.token).then(info => {
+            config.userInfo.set(args.service, args.channel, info);
+            win.webContents.send('auth', { service: args.service, type: 'load', channel: args.channel, info });
+          }).catch(() => {});
+        }
         break;
       case 'clear':
-        config.clearAuthData(args.service, args.channel);
+        config.token.set(args.service, args.channel, null);
         break;
     }
   }

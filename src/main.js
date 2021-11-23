@@ -5,15 +5,11 @@ import store from './store'
 import vuetify from './plugins/vuetify'
 import 'roboto-fontface/css/roboto/roboto-fontface.css'
 import '@mdi/font/css/materialdesignicons.css'
+import * as constants from "./constants";
 
 Vue.config.productionTip = false
 
-Vue.prototype.$serviceKeys = {
-  twitch: {
-    username: 'display_name',
-    pfp: 'profile_image_url'
-  }
-}
+Vue.prototype.$serviceKeys = constants.mappingKeys;
 
 new Vue({
   router,

@@ -1,6 +1,6 @@
 const express = require('express');
-const twitchAuth = require('../tokenCatcher');
-const { version, name } = require('./../../../package.json');
+const tokenCatcher = require('./tokenCatcher');
+const { version, name } = require('../../../package.json');
 
 // TODO: implement code for streamlets
 
@@ -30,14 +30,16 @@ server.use((req, res, next) => {
     next();
 });
 server.use('/internal', (req, res, next) => {
-    const ua = req.headers['user-agent'].split(' ');
+    if (req.headers['user-agent']) {
+        const ua = req.headers['user-agent'].split(' ');
 
-    if (ua.indexOf(`${name}/${version}`) >= 0) {
-        next();
+        if (ua.indexOf(`${name}/${version}`) >= 0) {
+            next();
+            return;
+        }
     }
-    else {
-        res.respond(null, 403);
-    }
+
+    res.respond(null, 403);
 })
 
 
@@ -45,11 +47,11 @@ server.get('/', (req, res) => {
     res.send('Hello World!');
 });
 
-server.use('/internal/auth', twitchAuth.srv);
+server.use('/internal/auth', tokenCatcher.srv);
 
-function setupConfig(configObj) {
+function setup(configObj, serviceMan) {
     config = configObj;
-    twitchAuth.setup(configObj);
+    tokenCatcher.setup(serviceMan);
 }
 function startServer(port) {
     if (!runningSrv) {
@@ -79,5 +81,5 @@ function closeServer() {
 module.exports = {
     start: startServer,
     close: closeServer,
-    setup: setupConfig
+    setup
 }

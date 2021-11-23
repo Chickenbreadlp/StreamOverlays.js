@@ -7,7 +7,7 @@
       color="primary darken-1"
       class="window-bar"
     >
-      <span>Streamlets</span>
+      <span>{{ windowTitle }}</span>
       <v-spacer />
       <button @click="minimizeWindow()">
         <v-icon class="ma-0">mdi-minus</v-icon>
@@ -56,10 +56,11 @@
 </template>
 
 <script>
-
+import { title } from '../package.json';
 import Sidebar from "@/components/sidebar";
 import AccountDialog from "@/components/accountDialog";
 import Settings from "@/components/settings";
+
 export default {
   name: 'App',
   components: {Settings, AccountDialog, Sidebar},
@@ -90,6 +91,11 @@ export default {
     window.ipc.receive('maximize', (wasMaximized) => {
       this.maximized = wasMaximized;
     });
+  },
+  computed: {
+    windowTitle() {
+      return title;
+    }
   },
   methods: {
     closeWindow () {

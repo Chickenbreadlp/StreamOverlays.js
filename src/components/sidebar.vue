@@ -61,8 +61,8 @@ export default {
     },
     accLoading() {
       return {
-        main: Object.keys(this.mainUser.userInfo).length === 0 && Object.keys(this.mainUser.token).length !== 0,
-        bot: Object.keys(this.botUser.userInfo).length === 0 && Object.keys(this.botUser.token).length !== 0
+        main: Object.keys(this.mainUser.userInfo).length === 0 && this.mainUser.token.length > 0,
+        bot: Object.keys(this.botUser.userInfo).length === 0 && this.botUser.token.length > 0
       }
     }
   },

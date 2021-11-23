@@ -20,13 +20,21 @@ function isPortTaken(port) {
     });
 }
 
-function setConfig(configObj) {
-    componentProvider.setup(configObj);
+function setup(configObj, serviceMan) {
+    componentProvider.setup(configObj, serviceMan);
 }
 function startServers() {
     running = true;
     dataProvider.start(process.env.VUE_APP_WEB_SOCKET_PORT);
     componentProvider.start(process.env.VUE_APP_STREAMLET_PORT);
+}
+function closeServers() {
+    return Promise.all([
+        componentProvider.close(),
+        dataProvider.close()
+    ]).then(() => {
+        running = false;
+    });
 }
 
 function checkPorts() {
@@ -39,16 +47,9 @@ function checkPorts() {
 }
 
 module.exports = {
-    setConfig,
+    setup,
     checkPorts,
     startAll: startServers,
-    closeAll: () => {
-        return Promise.all([
-            componentProvider.close(),
-            dataProvider.close()
-        ]).then(() => {
-            running = false;
-        });
-    },
+    closeAll: closeServers,
     isServiceRunning: () => (running)
 }
