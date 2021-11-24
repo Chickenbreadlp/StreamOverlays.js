@@ -51,5 +51,6 @@ module.exports = {
     checkPorts,
     startAll: startServers,
     closeAll: closeServers,
-    isServiceRunning: () => (running)
+    isServiceRunning: () => (running),
+    broadcastData: dataProvider.broadcast
 }

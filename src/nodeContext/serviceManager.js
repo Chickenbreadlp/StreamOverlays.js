@@ -3,8 +3,8 @@ const twitch = require('./services/twitch');
 let currentService;
 let currentAPI;
 
-function setupConfig(configObj) {
-    twitch.setupConfig(configObj);
+function setup(configObj, broadcastFn) {
+    twitch.setup(configObj, broadcastFn);
 }
 
 function setService(service) {
@@ -21,7 +21,7 @@ function setService(service) {
 setService('twitch');
 
 module.exports = {
-    setupConfig,
+    setup,
     setService,
     getCurrentService: () => (currentService),
 

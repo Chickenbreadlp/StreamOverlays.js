@@ -11,10 +11,10 @@ import * as config from '@/nodeContext/config';
 import * as streamlets from '@/nodeContext/streamlets';
 import * as serviceManager from '@/nodeContext/serviceManager';
 
-const isDevelopment = process.env.NODE_ENV !== 'production';
+const isDevelopment = constants.isDevelopment;
 
-serviceManager.setupConfig(config);
 streamlets.setup(config, serviceManager);
+serviceManager.setup(config, streamlets.broadcastData);
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
@@ -146,9 +146,9 @@ ipcMain.on('auth', (event, args) => {
     switch (args.cmd) {
       case 'request':
         serviceManager.api.requestToken(win, args.channel).then((data) => {
-          win.webContents.send('auth', { service: 'twitch', type: 'request', channel: args.channel, data });
+          win.webContents.send('auth', { service: args.service, type: 'request', channel: args.channel, data });
         }).catch(() => {
-          win.webContents.send('auth', { service: 'twitch', type: 'request', error: 'Cancelled Token Request' });
+          win.webContents.send('auth', { service: args.service, type: 'request', error: 'Cancelled Token Request' });
         });
         break;
       case 'load':
@@ -163,6 +163,14 @@ ipcMain.on('auth', (event, args) => {
       case 'clear':
         config.token.set(args.service, args.channel, null);
         break;
+    }
+  }
+})
+ipcMain.on('service', (event, args) => {
+  if (constants.isSupported(args.service)) {
+    if (args.cmd === 'switch') {
+      console.log('Service switch requested', args.service);
+      serviceManager.setService(args.service);
     }
   }
 })

@@ -17,12 +17,25 @@ export default new Vuex.Store({
     },
     currentService: 'twitch'
   },
+  getters: {
+    hasToken: (state) => (service, channel) => {
+      if (state[service] && state[service][channel]) {
+        const token = state[service][channel].token;
+        if (typeof token === 'string') {
+          return token.length > 0;
+        }
+        else if (typeof token === 'object') {
+          return Object.keys(token).length > 0;
+        }
+      }
+    }
+  },
   mutations: {
     setUserToken(store, args) {
       if (args.service === 'twitch') {
         if (
-            (args.type === 'main' || args.type === 'bot')
-            && typeof args.token === 'string'
+          (args.type === 'main' || args.type === 'bot') &&
+          (typeof args.token === 'string' || typeof args.token === 'object')
         ) {
           store.twitch[args.type].token = args.token;
         }

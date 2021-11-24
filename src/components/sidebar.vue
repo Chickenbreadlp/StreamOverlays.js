@@ -7,10 +7,14 @@
     <v-list-item two-line>
       <v-list-item-content>
         <v-list-item-title class="text-h6">
-          {{ mainUser.userInfo[this.service.keys.username] || (accLoading.main ? 'Loading...' : 'Please log in') }}
+          <v-icon>mdi-{{ service.name }}</v-icon>
+          {{ mainUser.userInfo[this.service.keys.username] || (hasToken.main ? 'Loading...' : 'Please log in') }}
         </v-list-item-title>
         <v-list-item-subtitle>
-          {{ botUser.userInfo[this.service.keys.username] || (accLoading.bot ? 'Loading...' : 'No bot account configured') }}
+          <span v-if="botUser.userInfo[this.service.keys.username]" style="margin-left: 1px">Bot: </span>
+          {{
+            botUser.userInfo[this.service.keys.username] || (hasToken.bot ? 'Loading...' : 'No bot account configured')
+          }}
         </v-list-item-subtitle>
       </v-list-item-content>
       <v-list-item-action>
@@ -59,10 +63,10 @@ export default {
     botUser() {
       return this.$store.state[this.service.name].bot
     },
-    accLoading() {
+    hasToken() {
       return {
-        main: Object.keys(this.mainUser.userInfo).length === 0 && this.mainUser.token.length > 0,
-        bot: Object.keys(this.botUser.userInfo).length === 0 && this.botUser.token.length > 0
+        main: this.$store.getters.hasToken(this.service.name, 'main'),
+        bot: this.$store.getters.hasToken(this.service.name, 'bot')
       }
     }
   },

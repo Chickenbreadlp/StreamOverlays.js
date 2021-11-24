@@ -40,6 +40,7 @@ function closerServer() {
 }
 
 function broadcast(channel, message) {
+    console.log(channel, message);
     sockets.forEach(ws => ws.send({ channel, message }));
 }
 

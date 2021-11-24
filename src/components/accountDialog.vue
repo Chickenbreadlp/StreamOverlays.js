@@ -15,16 +15,38 @@
         </v-btn>
       </v-card-title>
 
-      <v-row class="mx-0 mb-0">
-        <v-col cols="4" align-self="center">
+      <v-row class="mx-0 mb-0 px-3">
+        <v-col cols="auto" align-self="center">
           Service:
         </v-col>
-        <v-col cols="8">
-          <v-select
+        <v-spacer />
+        <v-col cols="auto">
+          <v-btn-toggle
             v-model="service"
-            :items="services"
-            :disabled="requestingToken.active"
-          />
+            dense
+            mandatory
+            color="primary"
+          >
+            <v-tooltip
+              v-for="(s) of services"
+              bottom
+              :key="s.value"
+            >
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn :value="s.value" v-bind="attrs" v-on="on">
+                  <v-icon :color="s.color">mdi-{{ s.icon }}</v-icon>
+                </v-btn>
+              </template>
+              <span>{{ s.text }}</span>
+            </v-tooltip>
+
+            <v-btn
+              disabled
+              class="text-none"
+            >
+              More to come
+            </v-btn>
+          </v-btn-toggle>
         </v-col>
       </v-row>
 
@@ -86,17 +108,16 @@ export default {
   },
   data: () => ({
     requestingToken: false,
-    services: [
-      {
-        text: 'Twitch',
-        value: 'twitch'
-      }
-    ],
     currentTab: 0
   }),
   mounted() {
     this.readTokenFromLs('twitch', 'main');
     this.readTokenFromLs('twitch', 'bot');
+
+    const s = localStorage.getItem('service.selected')
+    if (s.substr(0,1) === '"') {
+      this.service = JSON.parse(s);
+    }
 
     window.ipc.receive('auth', (args) => {
       if (args.error === 'Cancelled Token Request') {
@@ -144,7 +165,26 @@ export default {
       },
       set(newService) {
         this.changeService(newService);
+        window.ipc.send('service', {
+          cmd: 'switch',
+          service: newService
+        });
+        localStorage.setItem('service.selected', JSON.stringify(newService));
       }
+    },
+    services() {
+      const sArr = [];
+
+      for (const key in this.$services) {
+        sArr.push({
+          value: key,
+          text: this.$services[key].name,
+          color: this.$services[key].color,
+          icon: this.$services[key].icon || key
+        });
+      }
+
+      return sArr;
     }
   },
   methods: {

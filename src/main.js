@@ -10,6 +10,7 @@ import * as constants from "./constants";
 Vue.config.productionTip = false
 
 Vue.prototype.$serviceKeys = constants.mappingKeys;
+Vue.prototype.$services = constants.supportedServices;
 
 new Vue({
   router,

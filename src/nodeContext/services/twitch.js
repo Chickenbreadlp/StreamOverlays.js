@@ -6,9 +6,15 @@ const clientId = process.env.VUE_APP_TWITCH_CLIENT_ID;
 
 let config;
 let lastState = null;
+let broadcastData = (channel, message) => {
+    console.log(`It looks like the Broadcast Function wasn't setup. Perhaps you've missed to run the setup function?`, channel, message);
+    return false;
+};
 
-function setupConfig(configObj) {
+function setup(configObj, broadcastFn) {
     config = configObj;
+    broadcastData = broadcastFn;
+    broadcastData('test', 'This is a test message');
 }
 
 /* Auth Section */
@@ -76,44 +82,43 @@ function receiveToken(service, tokenObj) {
     }
     return false;
 }
-function validate(token, callback) {
+function validate(token) {
     const headers = {
         'Authorization': `Bearer ${token}`
     }
 
-    axios.get('https://id.twitch.tv/oauth2/validate', { headers }).then(res => {
-        console.log(res);
-        headers['Client-Id'] = clientId;
-        callback(null, headers);
-    }).catch((err) => {
-        console.log(err);
-        callback(err);
+    return new Promise((resolve, reject) => {
+        axios.get('https://id.twitch.tv/oauth2/validate', { headers }).then((res) => {
+            console.log(res.data);
+            headers['Client-Id'] = clientId;
+            resolve(headers);
+        }).catch((err) => {
+            console.log(err);
+            reject(err);
+        })
     });
 }
 
 /* Get Requests */
 function getUserInfo(token) {
     return new Promise((resolve, reject) => {
-        validate(token, (err, headers) => {
-            if (!err) {
-                axios.get('https://api.twitch.tv/helix/users', {headers}).then(res => {
-                    if (Array.isArray(res.data.data) && res.data.data.length > 0) {
-                        resolve(res.data.data[0]);
-                    }
-                }).catch((err) => {
-                    console.log(err);
-                    reject(err);
-                });
-            }
-            else {
+        validate(token).then(headers => {
+            axios.get('https://api.twitch.tv/helix/users', { headers }).then(res => {
+                if (Array.isArray(res.data.data) && res.data.data.length > 0) {
+                    resolve(res.data.data[0]);
+                }
+            }).catch((err) => {
+                console.log(err);
                 reject(err);
-            }
+            });
+        }).catch((err) => {
+            reject(err);
         });
     });
 }
 
 module.exports = {
-    setupConfig,
+    setup,
     requestToken,
     receiveToken,
     getUserInfo
