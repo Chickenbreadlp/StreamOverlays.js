@@ -108,20 +108,31 @@ export default {
   },
   data: () => ({
     requestingToken: false,
-    currentTab: 0
+    currentTab: 0,
+    tokensLoaded: []
   }),
   mounted() {
-    this.readTokenFromLs('twitch', 'main');
-    this.readTokenFromLs('twitch', 'bot');
-
-    const s = localStorage.getItem('service.selected')
-    if (s.substr(0,1) === '"') {
+    const s = localStorage.getItem('service.selected');
+    if (s && s.substr(0,1) === '"') {
       this.service = JSON.parse(s);
+    }
+    else {
+      console.log('No Service preference found; continuing to load defaults')
+      this.readTokenFromLs(this.service, 'main');
+      this.readTokenFromLs(this.service, 'bot');
+      this.tokensLoaded.push(this.service);
     }
 
     window.ipc.receive('auth', (args) => {
-      if (args.error === 'Cancelled Token Request') {
-        this.requestingToken = false;
+      if (args.error) {
+        switch (args.error) {
+          case 'Cancelled Token Request':
+            this.requestingToken = false;
+            break;
+          case 'Token invalidated':
+            localStorage.removeItem(`${args.service}.${args.channel}`);
+            break;
+        }
       }
       else if (args.type === 'request') {
         const data = args.data;
@@ -149,6 +160,19 @@ export default {
         });
       }
     });
+    window.ipc.receive('service', (args) => {
+      if (args.error) {
+        console.log(args.error);
+      }
+      else if (args.type === 'switch') {
+        if (this.tokensLoaded.indexOf(args.service) < 0) {
+          console.log(`Tokens not previously loaded for ${args.service}, so loading them now...`);
+          this.readTokenFromLs(args.service, 'main');
+          this.readTokenFromLs(args.service, 'bot');
+          this.tokensLoaded.push(args.service);
+        }
+      }
+    })
   },
   computed: {
     open: {

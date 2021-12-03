@@ -8,14 +8,24 @@ function setup(configObj, broadcastFn) {
 }
 
 function setService(service) {
+    if (currentAPI && typeof currentAPI.closeSockets === 'function') {
+        currentAPI.closeSockets();
+    }
+
     switch (service) {
         case 'twitch':
             currentAPI = twitch;
             currentService = service;
             break;
-        default:
-            throw 'Not Supported!';
     }
+
+    currentAPI.connectSockets();
+}
+function reconnectSockets() {
+    if (currentAPI && typeof currentAPI.closeSockets === 'function') {
+        currentAPI.closeSockets();
+    }
+    currentAPI.connectSockets();
 }
 
 setService('twitch');
@@ -24,6 +34,7 @@ module.exports = {
     setup,
     setService,
     getCurrentService: () => (currentService),
+    reconnectSockets,
 
     api: {
         requestToken: (parentWin, channel) => {

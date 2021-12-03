@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('ipc', {
         }
     },
     receive: (channel, func) => {
-        let validChannels = ['maximize', 'auth'];
+        let validChannels = ['maximize', 'auth', 'service'];
         if (validChannels.includes(channel)) {
             // Deliberately strip event as it includes `sender`
             ipcRenderer.on(channel, (event, ...args) => func(...args));

@@ -24,6 +24,14 @@ function generateRandomString(length) {
     return str;
 }
 
+function generateJitter(baseTime) {
+    const r = Math.random();
+    const j = 0.9 + r * 0.2;
+
+    return baseTime * j;
+}
+
 module.exports = {
-    generateRandomString
+    generateRandomString,
+    generateJitter
 }

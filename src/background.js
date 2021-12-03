@@ -143,21 +143,46 @@ ipcMain.on('maximize', (event, args) => {
 // Other IPC functions
 ipcMain.on('auth', (event, args) => {
   if (win && constants.isSupported(args.service)) {
+    const response = {
+      type: args.cmd,
+      service: args.service,
+      channel: args.channel
+    }
+
     switch (args.cmd) {
       case 'request':
-        serviceManager.api.requestToken(win, args.channel).then((data) => {
-          win.webContents.send('auth', { service: args.service, type: 'request', channel: args.channel, data });
-        }).catch(() => {
-          win.webContents.send('auth', { service: args.service, type: 'request', error: 'Cancelled Token Request' });
-        });
+        if (serviceManager.getCurrentService() === args.service) {
+          serviceManager.api.requestToken(win, args.channel).then((data) => {
+            response.data = data;
+          }).catch(() => {
+            response.error = 'Cancelled Token Request';
+          }).finally(() => {
+            win.webContents.send('auth', response);
+          });
+        }
+        else {
+          response.error = 'Service not active!';
+          win.webContents.send('auth', response);
+        }
         break;
       case 'load':
-        config.token.set(args.service, args.channel, args.token);
         if (serviceManager.getCurrentService() === args.service) {
+          config.token.set(args.service, args.channel, args.token);
           serviceManager.api.getUserInfo(args.token).then(info => {
             config.userInfo.set(args.service, args.channel, info);
-            win.webContents.send('auth', { service: args.service, type: 'load', channel: args.channel, info });
-          }).catch(() => {});
+
+            serviceManager.reconnectSockets();
+
+            response.info = info;
+          }).catch(() => {
+            response.error = 'Token invalidated';
+          }).finally(() => {
+            win.webContents.send('auth', response);
+          });
+        }
+        else {
+          response.error = 'Service not active!';
+          win.webContents.send('auth', response);
         }
         break;
       case 'clear':
@@ -167,10 +192,17 @@ ipcMain.on('auth', (event, args) => {
   }
 })
 ipcMain.on('service', (event, args) => {
-  if (constants.isSupported(args.service)) {
+  if (win && constants.isSupported(args.service)) {
+    const response = {
+      type: args.cmd,
+      service: args.service
+    }
+
     if (args.cmd === 'switch') {
       console.log('Service switch requested', args.service);
       serviceManager.setService(args.service);
+
+      win.webContents.send('service', response);
     }
   }
 })
