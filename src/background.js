@@ -187,6 +187,7 @@ ipcMain.on('auth', (event, args) => {
         break;
       case 'clear':
         config.token.set(args.service, args.channel, null);
+        serviceManager.reconnectSockets();
         break;
     }
   }

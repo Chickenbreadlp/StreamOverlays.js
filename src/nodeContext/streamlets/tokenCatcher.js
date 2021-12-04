@@ -15,8 +15,6 @@ tokenSrv.get('/:service', (req, res) => {
     xhr.setRequestHeader("Accept", "application/json");
     xhr.setRequestHeader("Content-Type", "application/json");
 
-    xhr.onreadystatechange = window.close;
-
     let data = {};
     
     if (location.hash.length > 0) {

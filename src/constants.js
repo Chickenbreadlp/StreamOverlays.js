@@ -27,7 +27,8 @@ module.exports = {
             devTools: isDevelopment,
             nodeIntegration: false,
             contextIsolation: true,
-            partition: 'login'
+            partition: 'login',
+            sandbox: true
         },
         modal: true,
         minimizable: false,
