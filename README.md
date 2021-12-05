@@ -25,8 +25,8 @@ npm run electron:serve
 ```
 
 ### Build Project for a Production environment
-Please note that the project is set up for a Windows Build only as of right now.  
-As the app is written with Electron, supporting other OSes shouldn't be a problem in the future, it's just not set up for now.
+*Please Note*  
+*The project is set up for a Windows and Linux build. If you want to build for macOS, you may have to adjust the default build-pipeline.*
 ```
 npm run electron:build
 ```

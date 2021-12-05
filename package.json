@@ -2,14 +2,18 @@
   "name": "streamoverlays.js",
   "title": "StreamOverlays.js",
   "description": "An App to run your own reactive Stream Overlay components",
-  "author": "Chickenbread",
+  "author": {
+    "name": "Chickenbread",
+    "email": "Chickenbreadlp@users.noreply.github.com",
+    "url": "https://github.com/Chickenbreadlp"
+  },
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "electron:build": "vue-cli-service electron:build",
+    "electron:build": "vue-cli-service electron:build -l -w",
     "electron:serve": "vue-cli-service electron:serve",
     "postinstall": "electron-builder install-app-deps",
     "postuninstall": "electron-builder install-app-deps"
