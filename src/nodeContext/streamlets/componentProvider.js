@@ -1,11 +1,12 @@
 const express = require('express');
-const tokenCatcher = require('./tokenCatcher');
+
 const { version, name } = require('../../../package.json');
+const tokenCatcher = require('./tokenCatcher');
+const chatbox = require('./components/chatbox');
 
 // TODO: implement code for streamlets
 
 const server = express();
-let config;
 let runningSrv;
 let currentPort = 0;
 
@@ -40,18 +41,16 @@ server.use('/internal', (req, res, next) => {
     }
 
     res.respond(null, 403);
-})
-
-
-server.get('/', (req, res) => {
-    res.send('Hello World!');
 });
 
 server.use('/internal/auth', tokenCatcher.srv);
 
+// Components
+server.use('/chatbox', chatbox.srv);
+
 function setup(configObj, serviceMan) {
-    config = configObj;
     tokenCatcher.setup(serviceMan);
+    chatbox.setup(configObj);
 }
 function startServer(port) {
     if (!runningSrv) {

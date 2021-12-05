@@ -1,5 +1,11 @@
+const fs = require('fs');
 const constants = require('../constants');
 
+const componentStore = {
+    chatbox: {
+        style: ''
+    }
+};
 const tokenStore = {
     pending: {
         service: null,
@@ -19,8 +25,26 @@ function storeToken(service, channel, token) {
 
     tokenStore[service][channel] = token;
 }
+function saveComponents() {
+    fs.writeFileSync('./config.json', JSON.stringify(componentStore), {encoding: 'utf8'});
+}
+function loadComponents() {
+    if (fs.existsSync('./config.json')) {
+        const file = fs.readFileSync('./config.json', {encoding: 'utf8'});
+        const newConfig = JSON.parse(file);
+
+        for (let key of Object.keys(newConfig)) {
+            // Suppressing ES-Lint here, as the app is developed with Node 14 and .hasOwn is not available
+            // eslint-disable-next-line no-prototype-builtins
+            if (componentStore.hasOwnProperty(key)) {
+                componentStore[key] = newConfig[key];
+            }
+        }
+    }
+}
 
 /* External Functions */
+// Token Functions
 function setPendingToken(service, channel) {
     if (constants.isSupported(service)) {
         if (tokenStore.pending.service === null) {
@@ -66,6 +90,7 @@ function getToken(service, channel) {
     return null;
 }
 
+// User Info functions
 function setUserInfo(service, channel, info) {
     if (constants.isSupported(service)) {
         if (
@@ -91,6 +116,21 @@ function getUserInfo(service, channel) {
     return null;
 }
 
+// Component functions
+function setComponentStyle(component, style) {
+    if (componentStore[component] && typeof style === 'string') {
+        componentStore[component].style = style;
+        saveComponents();
+    }
+}
+function getComponentStyle(component) {
+    if (componentStore[component]) {
+        return componentStore[component].style;
+    }
+}
+
+loadComponents();
+
 module.exports = {
     token: {
         setPending: setPendingToken,
@@ -102,5 +142,9 @@ module.exports = {
     userInfo: {
         set: setUserInfo,
         get: getUserInfo
+    },
+    component: {
+        setStyle: setComponentStyle,
+        getStyle: getComponentStyle
     }
 }
