@@ -199,28 +199,45 @@ async function initChatSocket(token, login, channel) {
             const emoteReplaceTable = [];
             for (const emote in emotes) {
                 const url = `https://static-cdn.jtvnw.net/emoticons/v2/${emote}/default/dark/3.0`;
-                const occurrence = emotes[emote][0];
-                const start = Number(occurrence.split('-')[0])
-                const end = Number(occurrence.split('-')[1]) + 1;
 
-                emoteReplaceTable.push({
-                    url,
-                    name: message.substring(start, end)
-                });
+                for (const occurrence of emotes[emote]) {
+                    const start = Number(occurrence.split('-')[0])
+                    const end = Number(occurrence.split('-')[1]) + 1;
+
+                    emoteReplaceTable.push({
+                        url,
+                        start,
+                        end
+                    });
+                }
             }
 
-            // Escape certain HTML reserved characters (<>&)
-            message = message.split('&').join('&amp;');
-            message = message.split('<').join('&lt;');
-            message = message.split('>').join('&gt;');
+            // Sort Emoji list by order of occurrence
+            emoteReplaceTable.sort((a, b) => a.start - b.start);
 
-            // Replace Emotes with <img> tags
+            // Split up original chat messages at Emojis and insert Emojis as Objects
+            let offset = 0;
+            let textSplit = [
+                message
+            ];
             for (const emote of emoteReplaceTable) {
-                message = message.split(emote.name).join(`<img alt="" src="${emote.url}" class="emote">`);
+                const wrkTxt = textSplit[textSplit.length-1];
+                const startTxt = wrkTxt.substring(0, emote.start - offset);
+                const endTxt = wrkTxt.substring(emote.end - offset);
+                offset = emote.end;
+
+                textSplit[textSplit.length-1] = startTxt;
+                textSplit.push(
+                    { type: 'emote', platform: 'twitch', url: emote.url },
+                    endTxt
+                )
             }
+
+            // Remove empty message sections
+            textSplit = textSplit.filter(entry => typeof entry === 'object' || entry.length > 0);
 
             // Broadcast the chat message
-            streamletData.text = message;
+            streamletData.text = textSplit;
             broadcastData('chat', streamletData);
 
             // Execute commands, if not send by the bot itself
