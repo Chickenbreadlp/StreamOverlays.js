@@ -7,10 +7,25 @@ const TEMPLATE = `
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${title} Chatbox</title>
     <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js" integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
     <style>
-        .chatcontainer {
+        * {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #fff;
+        }
+        
+        @keyframes card-incoming {
+            from {
+                transform: rotateX(90deg);
+            }
+            to {
+                transform: rotateX(0deg);
+            }
+        }
+        
+        .chatContainer {
             display: flex;
             position: fixed;
             left: 0;
@@ -21,6 +36,33 @@ const TEMPLATE = `
             flex-flow: column;
             justify-content: flex-end;
             gap: 16px;
+            padding: 18px;
+        }
+        .chatMessage {
+            background: linear-gradient(
+                rgba(100,100,100,.65),
+                rgba(50,50,50,.65)
+            );
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 8px 12px 4px rgba(0,0,0,.4);
+            
+            animation: card-incoming 1s ease-in-out;
+        }
+        .user {
+            font-size: 28px;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .message {
+            font-size: 26px;
+            line-height: 38px;
+        }
+        .emoji img {
+            height: 38px;
+            position: relative;
+            bottom: -8px;
+            margin-top: -16px;
         }
     </style>
     <style>{{CUSTOM_STYLE}}</style>
@@ -66,10 +108,12 @@ const TEMPLATE = `
                                 }
                                 else if (part['type'] === 'emote') {
                                     msgContainer.append(
-                                        $('<img></img>')
-                                            .attr('src', part['url'])
+                                        $('<span></span>')
                                             .addClass('emoji')
                                             .addClass('platform--' + part['platform'])
+                                            .append(
+                                                $('<img></img>').attr('src', part['url'])                                                
+                                            )
                                     );
                                 }
                             }
