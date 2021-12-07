@@ -45,6 +45,7 @@ const TEMPLATE = `
             );
             border-radius: 8px;
             padding: 12px;
+            overflow: hidden;
             box-shadow: 0 8px 12px 4px rgba(0,0,0,.4);
             
             animation: card-incoming 1s ease-in-out;
