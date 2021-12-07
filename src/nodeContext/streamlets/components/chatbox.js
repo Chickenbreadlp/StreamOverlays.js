@@ -49,11 +49,34 @@ const TEMPLATE = `
             
             animation: card-incoming 1s ease-in-out;
         }
+        
+        .spacer {
+            flex: 1;
+        }
+        
         .user {
-            font-size: 28px;
+            display: flex;
+            flex-flow: row;
+            
+            font-size: 20px;
             margin-bottom: 4px;
             font-weight: 500;
         }
+        .user span {
+            margin-right: 4px;
+        }
+        .user .name {
+            font-weight: bold;
+            text-shadow: 0 0 2px black;
+        }
+        .badge img {
+            height: 22px;
+            position: relative;
+            bottom: -3px;
+            margin-top: -6px;
+            border-radius: 2px;
+        }
+        
         .message {
             font-size: 26px;
             line-height: 38px;
@@ -95,8 +118,29 @@ const TEMPLATE = `
                             const chat = $('<div></div>').addClass('chatMessage');
                             const user = $('<div></div>')
                                 .addClass('user')
-                                .css('color', msg['color'])
-                                .text(msg['from']);
+                                .append(
+                                    $('<span></span>')
+                                        .addClass('name')
+                                        .css('color', msg['color'])
+                                        .text(msg['from'])
+                                )
+                                .append(
+                                    $('<span></span>').addClass('spacer')
+                                );
+                            
+                            for (const badge of msg['badges']) {
+                                user.append(
+                                    $('<span></span>')
+                                        .addClass('badge')
+                                        .addClass('platform--' + badge['platform'])
+                                        .addClass('name--' + badge['name'])
+                                        .addClass('variant--' + badge['variant'])
+                                        .append(
+                                            $('<img></img>').attr('src', badge['url'])                                                
+                                        )
+                                )
+                            }
+                            
                             chat.append(user);
                             
                             const msgContainer = $('<div></div>').addClass('message');

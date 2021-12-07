@@ -13,7 +13,12 @@ let chatSocketChannel = null;
 let pubSub;
 let recurring = [];
 
+// Configuration and Temporary storage
 let config;
+const globalBadges = {};
+let channelBadges = {};
+const userColorCache = {};
+
 let lastState = null;
 let tokenRequestWin = null;
 let broadcastData = (channel, message) => {
@@ -25,10 +30,36 @@ let triggerCommand = (cmd, args, extra) => {
     return false;
 }
 
+/* Misc */
 function setup(configObj, broadcastFn) {
     config = configObj;
     broadcastData = broadcastFn;
     broadcastData('test', 'This is a test message');
+}
+function getBadgeURL(name, variant) {
+    if (globalBadges[name]) {
+        let foundVariant;
+
+        if (variant) {
+            if (channelBadges[name]) {
+                foundVariant = channelBadges[name].find(v => v.id === variant);
+            }
+
+            if (!foundVariant) {
+                foundVariant = globalBadges[name].find(v => v.id === variant);
+            }
+        }
+
+        if (!variant || !foundVariant) {
+            foundVariant = globalBadges[name][0]
+        }
+
+        return foundVariant;
+    }
+}
+function getRandomColor() {
+    const r = Math.floor(Math.random() * constants.userColors.length);
+    return constants.userColors[r];
 }
 
 /* Auth Section */
@@ -142,7 +173,7 @@ function validate(token) {
             }
             else {
                 headers['Client-Id'] = clientId;
-                resolve({ headers, login: res.data.login });
+                resolve({ headers, login: res.data.login, userId: res.data.user_id });
             }
         }).catch((err) => {
             console.log(err);
@@ -168,6 +199,52 @@ function getUserInfo(token) {
         });
     });
 }
+function getBadges(token) {
+    return new Promise((resolve, reject) => {
+        validate(token).then(({ headers, userId }) => {
+            const params = { 'broadcaster_id': userId };
+            channelBadges = {};
+
+            const promises = [
+                axios.get('https://api.twitch.tv/helix/chat/badges', { headers, params }).then(res => {
+                    if (res.data.data && typeof res.data.data === 'object') {
+                        const badges = res.data.data;
+
+                        for (const badge of badges) {
+                            channelBadges[badge['set_id']] = badge['versions'];
+                        }
+
+                        console.log('channel', channelBadges);
+                    }
+                })
+            ];
+
+            if (Object.keys(globalBadges).length === 0) {
+                promises.push(
+                    axios.get('https://api.twitch.tv/helix/chat/badges/global', { headers }).then(res => {
+                        if (res.data.data && typeof res.data.data === 'object') {
+                            const badges = res.data.data;
+
+                            for (const badge of badges) {
+                                globalBadges[badge['set_id']] = badge['versions'];
+                            }
+
+                            console.log('global', globalBadges);
+                        }
+                    })
+                );
+            }
+
+            Promise.all(promises).then(() => {
+                resolve();
+            }).catch(() => {
+                reject();
+            })
+        }).catch(() => {
+            reject();
+        });
+    })
+}
 
 /* Socket Connections */
 // Chat Socket
@@ -187,11 +264,33 @@ async function initChatSocket(token, login, channel) {
         });
 
         chatSocket.on('chat', (channel, msgInfo, message, self) => {
-            const badges = Object.keys(msgInfo['badges'] || {});
-            const streamletData = {
-                from: msgInfo['display-name'],
-                color: msgInfo['color'],
-                badges
+            let color = msgInfo['color'];
+
+            if (!color) {
+                const user = msgInfo['username'];
+
+                if (userColorCache[user]) {
+                    color = userColorCache[user];
+                }
+                else {
+                    userColorCache[user] = getRandomColor();
+                    color = userColorCache[user];
+                }
+            }
+
+            const badges = [];
+            for (const badgeName in (msgInfo['badges'] || {})) {
+                const variant = msgInfo['badges'][badgeName];
+                const badgeObj = getBadgeURL(badgeName, variant);
+
+                if (badgeObj && typeof badgeObj['image_url_4x'] === 'string') {
+                    badges.push({
+                        name: badgeName,
+                        variant: variant,
+                        platform: 'twitch',
+                        url: badgeObj['image_url_4x']
+                    });
+                }
             }
 
             // Generate array of Emotes to be replaced
@@ -236,8 +335,14 @@ async function initChatSocket(token, login, channel) {
             // Remove empty message sections
             textSplit = textSplit.filter(entry => typeof entry === 'object' || entry.length > 0);
 
+            const streamletData = {
+                from: msgInfo['display-name'],
+                color: color,
+                text: textSplit,
+                badges
+            }
+
             // Broadcast the chat message
-            streamletData.text = textSplit;
             broadcastData('chat', streamletData);
 
             // Execute commands, if not send by the bot itself
@@ -269,9 +374,14 @@ function configureChatSocket(freshToken, name) {
 
             if (mainAcc.login === name) {
                 chatSocketChannel = 'main';
+
+                getBadges(freshToken).then();
             }
             else {
                 chatSocketChannel = 'bot';
+
+                const mainToken = config.token.get('twitch', 'main');
+                getBadges(mainToken).then();
             }
         }
     }
@@ -283,6 +393,7 @@ function configureChatSocket(freshToken, name) {
             validate(mainToken).then((main) => {
                 const channel = main.login;
                 let runningChannel = 'main';
+                getBadges(mainToken);
 
                 if (typeof botToken === 'string') {
                     validate(botToken).then(({ login }) => {
