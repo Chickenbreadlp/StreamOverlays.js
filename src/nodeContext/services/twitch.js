@@ -213,8 +213,6 @@ function getBadges(token) {
                         for (const badge of badges) {
                             channelBadges[badge['set_id']] = badge['versions'];
                         }
-
-                        console.log('channel', channelBadges);
                     }
                 })
             ];
@@ -228,8 +226,6 @@ function getBadges(token) {
                             for (const badge of badges) {
                                 globalBadges[badge['set_id']] = badge['versions'];
                             }
-
-                            console.log('global', globalBadges);
                         }
                     })
                 );

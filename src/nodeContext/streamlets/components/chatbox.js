@@ -75,7 +75,6 @@ const TEMPLATE = `
             position: relative;
             bottom: -3px;
             margin-top: -6px;
-            border-radius: 2px;
         }
         
         .message {
