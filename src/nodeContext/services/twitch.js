@@ -9,12 +9,16 @@ const clientId = process.env.VUE_APP_TWITCH_CLIENT_ID;
 
 let isSelected = false;
 let chatSocket;
-let chatSocketChannel = null;
+let botChatSocket;
 let pubSub;
 let recurring = [];
 
 // Configuration and Temporary storage
 let config;
+const cheermotes = {
+    regex: /\w+/,
+    emotes: {}
+};
 const globalBadges = {};
 let channelBadges = {};
 const userColorCache = {};
@@ -61,6 +65,136 @@ function getRandomColor() {
     const r = Math.floor(Math.random() * constants.userColors.length);
     return constants.userColors[r];
 }
+function parseEmoteList(emotes) {
+    // Generate array of Emotes to be replaced
+    const emoteReplaceTable = [];
+    for (const emote in emotes) {
+        const url = `https://static-cdn.jtvnw.net/emoticons/v2/${emote}/default/dark/3.0`;
+
+        for (const occurrence of emotes[emote]) {
+            const start = Number(occurrence.split('-')[0])
+            const end = Number(occurrence.split('-')[1]) + 1;
+
+            emoteReplaceTable.push({
+                url,
+                start,
+                end
+            });
+        }
+    }
+
+    // Sort Emoji list by order of occurrence
+    emoteReplaceTable.sort((a, b) => a.start - b.start);
+    return emoteReplaceTable;
+}
+function parseBadgeList(badgeList) {
+    const badges = [];
+    for (const badgeName in badgeList) {
+        const variant = badgeList[badgeName];
+        const badgeObj = getBadgeURL(badgeName, variant);
+
+        if (badgeObj && typeof badgeObj['image_url_4x'] === 'string') {
+            badges.push({
+                name: badgeName,
+                variant: variant,
+                platform: 'twitch',
+                url: badgeObj['image_url_4x']
+            });
+        }
+    }
+    return badges;
+}
+function parseMessage(message, msgInfo, emoteList) {
+    let color = msgInfo['color'];
+
+    if (!color) {
+        const user = msgInfo['username'];
+
+        if (userColorCache[user]) {
+            color = userColorCache[user];
+        }
+        else {
+            userColorCache[user] = getRandomColor();
+            color = userColorCache[user];
+        }
+    }
+
+    // Split up original chat messages at Emojis and insert Emojis as Objects
+    let offset = 0;
+    let textSplit = [
+        message
+    ];
+    for (const emote of emoteList) {
+        const wrkTxt = textSplit[textSplit.length-1];
+        const startTxt = wrkTxt.substring(0, emote.start - offset);
+        const endTxt = wrkTxt.substring(emote.end - offset);
+        offset = emote.end;
+
+        textSplit[textSplit.length-1] = startTxt;
+        textSplit.push(
+            { type: 'emote', platform: 'twitch', url: emote.url },
+            endTxt
+        )
+    }
+
+    // Remove empty message sections
+    textSplit = textSplit.filter(entry => typeof entry === 'object' || entry.length > 0);
+
+    return {
+        from: msgInfo['display-name'],
+        color: color,
+        text: textSplit
+    }
+}
+function parseCheerEmotes(splitMessage) {
+    const msgCopy = [...splitMessage];
+    for (let i = 0; i < msgCopy.length; i++) {
+        const part = msgCopy[i];
+        if (typeof part === 'string') {
+            const cmoteMatches = part.matchAll(cheermotes.regex);
+
+            const newPart = [part];
+            for (const match of cmoteMatches) {
+                const cmoteTiers = cheermotes.emotes[match[1].toLowerCase()];
+                if (cmoteTiers) {
+                    const amount = Number(match[2]);
+                    let cmote = cmoteTiers.filter(tier => tier['can_cheer'] && tier['min_bits'] <= amount);
+                    if (cmote.length > 0) {
+                        cmote = cmote[cmote.length-1];
+
+                        const end = match.index + match[0].length;
+                        const str = newPart[newPart.length - 1];
+
+                        newPart[newPart.length - 1] = str.substring(0, match.index);
+                        newPart.push(
+                            { type: 'cheer', platform: 'twitch', url: cmote['images']['dark']['animated'][4] },
+                            str.substring(end)
+                        );
+                    }
+                }
+            }
+
+            msgCopy.splice(i, 1, ...newPart);
+            i += newPart.length - 1;
+        }
+    }
+
+    return msgCopy;
+}
+function parseCommand(message, msgInfo, emoteList) {
+    const args = message.slice(1).split(' ');
+    const cmd = args.shift().toLowerCase();
+    const badgeList = Object.keys(msgInfo['badges'] || {});
+
+    triggerCommand(cmd, args, {
+        from: msgInfo['display-name'],
+        color: msgInfo['color'],
+        badgeInfo: msgInfo['badge-info'] || {},
+        emotes: emoteList,
+        isMod: msgInfo['mod'] || (badgeList.indexOf('broadcaster') >= 0),
+        isSubscriber: msgInfo['subscriber']
+    });
+}
 
 /* Auth Section */
 function requestToken(parentWin, channel) {
@@ -106,16 +240,10 @@ function requestToken(parentWin, channel) {
                             config.userInfo.set('twitch', channel, userInfo);
 
                             if (isSelected) {
-                                if (
-                                    chatSocketChannel === null ||
-                                    (chatSocketChannel === 'main' && channel === 'bot') ||
-                                    chatSocketChannel === channel
-                                ) {
-                                    configureChatSocket(token, userInfo.login);
-                                }
                                 if (channel === 'main') {
                                     reconnectPubSub();
                                 }
+                                configureChatSocket(token, userInfo.login, channel === 'bot');
                             }
 
                             resolve({
@@ -230,6 +358,25 @@ function getBadges(token) {
                     })
                 );
             }
+            if (Object.keys(cheermotes.emotes).length === 0) {
+                promises.push(
+                    axios.get('https://api.twitch.tv/helix/bits/cheermotes', { headers }).then(res => {
+                        if (res.data.data && typeof res.data.data === 'object') {
+                            const emotes = res.data.data;
+                            let regexList = '';
+
+                            for (const emote of emotes) {
+                                const prefix = String(emote['prefix']).toLowerCase();
+                                cheermotes.emotes[prefix] = emote['tiers'];
+                                regexList += prefix + '|';
+                            }
+
+                            regexList = regexList.substring(0, regexList.length-1);
+                            cheermotes.regex = new RegExp(`(?<=^|\\s)(${regexList})(\\d+)(?=\\s|$)`, 'gi');
+                        }
+                    })
+                );
+            }
 
             Promise.all(promises).then(() => {
                 resolve();
@@ -244,166 +391,158 @@ function getBadges(token) {
 
 /* Socket Connections */
 // Chat Socket
-async function initChatSocket(token, login, channel) {
+function createSocket(token, login, channel) {
+    if (!channel) {
+        channel = login;
+    }
+
+    return new tmi.Client({
+        channels: [ channel ],
+        identity: {
+            username: login,
+            password: `oauth:${token}`
+        },
+        connection: {
+            secure: true,
+            reconnect: true
+        }
+    });
+}
+function initMainChat(token, login) {
     if (!chatSocket) {
         console.log('Init chat socket');
-        chatSocket = new tmi.Client({
-            channels: [ channel ],
-            identity: {
-                username: login,
-                password: `oauth:${token}`
-            },
-            connection: {
-                secure: true,
-                reconnect: true
-            }
-        });
+        chatSocket = createSocket(token, login);
 
         chatSocket.on('chat', (channel, msgInfo, message, self) => {
-            let color = msgInfo['color'];
+            const emoteList = parseEmoteList(msgInfo['emotes'] || {});
+            const badgeList = parseBadgeList(msgInfo['badges'] || {});
 
-            if (!color) {
-                const user = msgInfo['username'];
-
-                if (userColorCache[user]) {
-                    color = userColorCache[user];
-                }
-                else {
-                    userColorCache[user] = getRandomColor();
-                    color = userColorCache[user];
-                }
-            }
-
-            const badges = [];
-            for (const badgeName in (msgInfo['badges'] || {})) {
-                const variant = msgInfo['badges'][badgeName];
-                const badgeObj = getBadgeURL(badgeName, variant);
-
-                if (badgeObj && typeof badgeObj['image_url_4x'] === 'string') {
-                    badges.push({
-                        name: badgeName,
-                        variant: variant,
-                        platform: 'twitch',
-                        url: badgeObj['image_url_4x']
-                    });
-                }
-            }
-
-            // Generate array of Emotes to be replaced
-            const emotes = msgInfo['emotes'] || {};
-            const emoteReplaceTable = [];
-            for (const emote in emotes) {
-                const url = `https://static-cdn.jtvnw.net/emoticons/v2/${emote}/default/dark/3.0`;
-
-                for (const occurrence of emotes[emote]) {
-                    const start = Number(occurrence.split('-')[0])
-                    const end = Number(occurrence.split('-')[1]) + 1;
-
-                    emoteReplaceTable.push({
-                        url,
-                        start,
-                        end
-                    });
-                }
-            }
-
-            // Sort Emoji list by order of occurrence
-            emoteReplaceTable.sort((a, b) => a.start - b.start);
-
-            // Split up original chat messages at Emojis and insert Emojis as Objects
-            let offset = 0;
-            let textSplit = [
-                message
-            ];
-            for (const emote of emoteReplaceTable) {
-                const wrkTxt = textSplit[textSplit.length-1];
-                const startTxt = wrkTxt.substring(0, emote.start - offset);
-                const endTxt = wrkTxt.substring(emote.end - offset);
-                offset = emote.end;
-
-                textSplit[textSplit.length-1] = startTxt;
-                textSplit.push(
-                    { type: 'emote', platform: 'twitch', url: emote.url },
-                    endTxt
-                )
-            }
-
-            // Remove empty message sections
-            textSplit = textSplit.filter(entry => typeof entry === 'object' || entry.length > 0);
-
-            const streamletData = {
-                from: msgInfo['display-name'],
-                color: color,
-                text: textSplit,
-                badges
-            }
+            const streamletData = parseMessage(message, msgInfo, emoteList);
+            streamletData.badges = badgeList;
 
             // Broadcast the chat message
             broadcastData('chat', streamletData);
 
             // Execute commands, if not send by the bot itself
-            if (!self && message.indexOf('!') === 0) {
-                const args = message.slice(1).split(' ');
-                const cmd = args.shift().toLowerCase();
-                triggerCommand(cmd, args, {
-                    from: msgInfo['display-name'],
-                    color: msgInfo['color'],
-                    badges,
-                    badgeInfo: msgInfo['badge-info'] || {},
-                    emotes: emoteReplaceTable,
-                    isMod: msgInfo['mod'] || (badges.indexOf('broadcaster') >= 0),
-                    isSubscriber: msgInfo['subscriber']
+            if (!self && message.indexOf('!') === 0 && botChatSocket) {
+                parseCommand(message, msgInfo, emoteList);
+            }
+        });
+
+        chatSocket.on('cheer', (channel, msgInfo, message) => {
+            console.log('cheer', msgInfo, message);
+            const emoteList = parseEmoteList(msgInfo['emotes'] || {});
+            const badgeList = parseBadgeList(msgInfo['badges'] || {});
+
+            const streamletData = parseMessage(message, msgInfo, emoteList);
+            streamletData.badges = badgeList;
+            console.log(streamletData.text);
+            streamletData.text = parseCheerEmotes(streamletData.text);
+            console.log(streamletData.text);
+            broadcastData('chat', streamletData);
+
+            const broadcastMsg = {
+                bits: msgInfo['bits'],
+                text: streamletData.text,
+                anonymous: false,
+                userName: msgInfo['display-name']
+            };
+            broadcastData('bits', broadcastMsg);
+            /*
+            {
+              'badge-info': { subscriber: '23' },
+              badges: { subscriber: '6', bits: '1000' },
+              bits: '1',
+              color: '#9ACD32',
+              'display-name': 'CBStream',
+              emotes: null,
+              'first-msg': false,
+              flags: null,
+              id: '5154a4c8-4984-4644-b58e-de8c3bcc87b0',
+              mod: false,
+              'room-id': '42875281',
+              subscriber: true,
+              'tmi-sent-ts': '1639163666675',
+              turbo: false,
+              'user-id': '39705228',
+              'user-type': null,
+              'emotes-raw': null,
+              'badge-info-raw': 'subscriber/23',
+              'badges-raw': 'subscriber/6,bits/1000',
+              username: 'cbstream',
+              'message-type': 'chat'
+            },
+            Do bits work now though? Cheer1
+            */
+        });
+        chatSocket.on('hosted', (channel, username, viewers, autohost) => {
+            console.log('host', username, viewers, autohost);
+            if (!autohost) {
+                broadcastData('host', {
+                    username,
+                    viewers
                 });
             }
+        });
+        chatSocket.on('raided', (channel, username, viewers) => {
+            console.log('raid', username, viewers);
+            broadcastData('raid', {
+                username,
+                viewers
+            });
         });
 
         chatSocket.connect().then();
     }
 }
-function configureChatSocket(freshToken, name) {
-    disconnectChatSocket();
+function initBotChat(token, login, channel) {
+    if (!botChatSocket) {
+        console.log('Init bot chat socket');
+        botChatSocket = createSocket(token, login, channel);
 
+        botChatSocket.on('chat', (channel, msgInfo, message, self) => {
+            // Execute commands, if not send by the bot itself
+            if (!self && message.indexOf('!') === 0) {
+                parseCommand(
+                    message,
+                    msgInfo,
+                    parseEmoteList(msgInfo['emotes'] || {})
+                );
+            }
+        });
+
+        botChatSocket.connect().then();
+    }
+}
+function configureChatSocket(freshToken, name, isBot) {
     if (freshToken && name) {
         const mainAcc = config.userInfo.get('twitch', 'main');
-        if (mainAcc) {
-            initChatSocket(freshToken, name, mainAcc.login).then(() => {});
-
-            if (mainAcc.login === name) {
-                chatSocketChannel = 'main';
-
-                getBadges(freshToken).then();
-            }
-            else {
-                chatSocketChannel = 'bot';
-
-                const mainToken = config.token.get('twitch', 'main');
-                getBadges(mainToken).then();
-            }
+        if (isBot) {
+            botChatSocket.disconnect();
+            botChatSocket = null;
+            initBotChat(freshToken, name, mainAcc.login);
+        }
+        else {
+            chatSocket.disconnect();
+            chatSocket = null;
+            initMainChat(freshToken, name);
         }
     }
     else {
+        disconnectChatSocket();
         const mainToken = config.token.get('twitch', 'main');
-        const botToken = config.token.get('twitch', 'bot');
 
         if (typeof mainToken === 'string') {
             validate(mainToken).then((main) => {
-                const channel = main.login;
-                let runningChannel = 'main';
-                getBadges(mainToken);
+                getBadges(mainToken).then();
+                initMainChat(mainToken, main.login);
 
+                const botToken = config.token.get('twitch', 'bot');
                 if (typeof botToken === 'string') {
-                    validate(botToken).then(({ login }) => {
-                        initChatSocket(botToken, login, channel).then(() => {});
-                        runningChannel = 'bot';
-                    }).catch(() => {
-                        initChatSocket(mainToken, channel, channel).then(() => {});
+                    validate(botToken).then(({login}) => {
+                        initBotChat(botToken, login, main.login);
                     });
                 }
-                else {
-                    initChatSocket(mainToken, channel, channel).then(() => {});
-                }
-
-                chatSocketChannel = runningChannel;
             });
         }
     }
@@ -412,7 +551,10 @@ function disconnectChatSocket() {
     if (chatSocket) {
         chatSocket.disconnect();
         chatSocket = null;
-        chatSocketChannel = null;
+    }
+    if (botChatSocket) {
+        botChatSocket.disconnect();
+        botChatSocket = null;
     }
 }
 
@@ -509,18 +651,16 @@ function startPubSub() {
                     }
 
                     if (topic[0] === 'channel-bits-events-v2') {
-                        const broadcastMsg = {
-                            bits: msg.data.bits_used,
-                            text: msg.data.chat_message,
-                            anonymous: msg.data.is_anonymous,
-                            userName: ''
-                        };
-
-                        if (!msg.is_anonymous) {
-                            broadcastMsg.userName = msg.data.user_name;
+                        if (msg.data.is_anonymous) {
+                            const broadcastMsg = {
+                                bits: msg.data.bits_used,
+                                //text: msg.data.chat_message,
+                                text: parseCheerEmotes([msg.data.chat_message]),
+                                anonymous: true,
+                                userName: ''
+                            };
+                            broadcastData('bits', broadcastMsg);
                         }
-
-                        broadcastData('bits', broadcastMsg);
                     }
                     else if (topic[0] === 'channel-points-channel-v1') {
                         const broadcastMsg = {

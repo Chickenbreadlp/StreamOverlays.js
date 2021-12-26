@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import Vuetify from 'vuetify/lib/framework';
+import * as constants from '../constants';
 
 Vue.use(Vuetify);
 
@@ -10,7 +11,7 @@ export default new Vuetify({
   theme: {
     themes: {
       light: {
-        primary: '#6300c9',
+        primary: constants.themeColor,
         /* secondary: '#424242',
         accent: '#82B1FF',
         error: '#FF5252',
@@ -19,7 +20,7 @@ export default new Vuetify({
         warning: '#FFC107' */
       },
       dark: {
-        primary: '#6300c9'
+        primary: constants.themeColor
       }
     },
   },

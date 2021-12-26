@@ -52,5 +52,7 @@ module.exports = {
         '#FF69B4',
         '#8A2BE2',
         '#00FF7F'
-    ]
+    ],
+    themeColor: '#6300c9',
+    twitchBitURL: 'https://static-cdn.jtvnw.net/bits/dark/animated/'
 }

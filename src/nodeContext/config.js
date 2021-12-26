@@ -4,6 +4,48 @@ const constants = require('../constants');
 const componentStore = {
     chatbox: {
         style: ''
+    },
+    alertbox: {
+        style: '',
+        highlightColor: constants.themeColor,
+        alerts: {
+            bits: {
+                message: 'Thanks for the %b bits %u!',
+                messageAnon: 'Thanks for the %b bits Anonymous user!',
+                animation: {
+                    1: {
+                        url: `${constants.twitchBitURL}gray/4`,
+                        color: '#a1a1a1'
+                    },
+                    100: {
+                        url: `${constants.twitchBitURL}purple/4`,
+                        color: '#be64ff'
+                    },
+                    1000: {
+                        url: `${constants.twitchBitURL}green/4`,
+                        color: '#01f0c5'
+                    },
+                    5000: {
+                        url: `${constants.twitchBitURL}blue/4`,
+                        color: '#559eff'
+                    },
+                    10000: {
+                        url: `${constants.twitchBitURL}red/4`,
+                        color: '#ed3841'
+                    },
+                }
+            },
+            host: {
+                message: 'Thanks for the host %u!',
+                subMessage: '%u is hosting us with %v viewers!',
+                animation: ''
+            },
+            raid: {
+                message: 'Thanks for the raid %u!',
+                subMessage: '%u is raiding us with %v viewers!',
+                animation: ''
+            }
+        }
     }
 };
 const tokenStore = {
@@ -25,6 +67,21 @@ function storeToken(service, channel, token) {
 
     tokenStore[service][channel] = token;
 }
+function patchObjValues(orgObj, newObj) {
+    for (const key in orgObj) {
+        if (
+            newObj[key] &&
+            typeof newObj[key] === typeof orgObj[key]
+        ) {
+            if (typeof orgObj[key] === 'object') {
+                patchObjValues(orgObj[key], newObj[key]);
+            }
+            else {
+                orgObj[key] = newObj[key];
+            }
+        }
+    }
+}
 function saveComponents() {
     fs.writeFileSync('./config.json', JSON.stringify(componentStore), {encoding: 'utf8'});
 }
@@ -33,13 +90,7 @@ function loadComponents() {
         const file = fs.readFileSync('./config.json', {encoding: 'utf8'});
         const newConfig = JSON.parse(file);
 
-        for (let key of Object.keys(newConfig)) {
-            // Suppressing ES-Lint here, as the app is developed with Node 14 and .hasOwn is not available
-            // eslint-disable-next-line no-prototype-builtins
-            if (componentStore.hasOwnProperty(key)) {
-                componentStore[key] = newConfig[key];
-            }
-        }
+        patchObjValues(componentStore, newConfig);
     }
 }
 
@@ -128,6 +179,26 @@ function getComponentStyle(component) {
         return componentStore[component].style;
     }
 }
+function setAlertHighlight(newColor) {
+    if (
+        typeof newColor === 'string' &&
+        newColor.match(/^(?:#[0-9a-fA-F]{3}|[0-9a-fA-F]{6})|rgb\((?:[0-9]{1,3},){2}[0-9]{1,3}\)$/)
+    ) {
+        componentStore.alertbox.highlightColor = newColor;
+    }
+}
+function getAlertHighlight() {
+    return componentStore.alertbox.highlightColor;
+}
+function setAlertConfig(alert, newConfig) {
+    const alConf = componentStore.alertbox.alerts[alert];
+    if (alConf) {
+        patchObjValues(alConf, newConfig);
+    }
+}
+function getFullAlertConfig() {
+    return { ...componentStore.alertbox.alerts };
+}
 
 loadComponents();
 
@@ -145,6 +216,10 @@ module.exports = {
     },
     component: {
         setStyle: setComponentStyle,
-        getStyle: getComponentStyle
+        getStyle: getComponentStyle,
+        setAlert: setAlertConfig,
+        setAlertHighlight,
+        getAlertHighlight,
+        getAlerts: getFullAlertConfig
     }
 }

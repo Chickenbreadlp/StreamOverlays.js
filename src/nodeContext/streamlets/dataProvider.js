@@ -55,12 +55,14 @@ function closerServer() {
 }
 
 function broadcast(channel, message) {
-    console.log(channel, message);
     if (server) {
         server.clients.forEach((ws) => {
+            if (channel !== 'chat') {
+                console.log('Broadcast', channel, message);
+            }
             ws.send(
                 JSON.stringify({channel, message})
-            )
+            );
         });
     }
 }

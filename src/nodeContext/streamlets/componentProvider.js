@@ -3,6 +3,7 @@ const express = require('express');
 const { version, name } = require('../../../package.json');
 const tokenCatcher = require('./tokenCatcher');
 const chatbox = require('./components/chatbox');
+const alertbox = require('./components/alertbox');
 
 // TODO: implement code for streamlets
 
@@ -47,10 +48,12 @@ server.use('/internal/auth', tokenCatcher.srv);
 
 // Components
 server.use('/chatbox', chatbox.srv);
+server.use('/alertbox', alertbox.srv);
 
 function setup(configObj, serviceMan) {
     tokenCatcher.setup(serviceMan);
     chatbox.setup(configObj);
+    alertbox.setup(configObj);
 }
 function startServer(port) {
     if (!runningSrv) {

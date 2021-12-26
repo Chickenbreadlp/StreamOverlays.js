@@ -2,6 +2,7 @@ const express = require('express');
 
 const { title } = require('../../../../package.json');
 
+// language=HTML
 const TEMPLATE = `
 <!DOCTYPE html>
 <html lang="en">
@@ -17,10 +18,10 @@ const TEMPLATE = `
         }
         
         @keyframes card-incoming {
-            from {
+            0%, 5% {
                 transform: rotateX(90deg);
             }
-            to {
+            100% {
                 transform: rotateX(0deg);
             }
         }
@@ -36,17 +37,18 @@ const TEMPLATE = `
             flex-flow: column;
             justify-content: flex-end;
             gap: 16px;
-            padding: 18px;
+            padding: 16px;
         }
         .chatMessage {
             background: linear-gradient(
-                rgba(100,100,100,.65),
-                rgba(50,50,50,.65)
+                rgba(100,100,100,.85),
+                rgba(50,50,50,.85)
             );
-            border-radius: 8px;
-            padding: 12px;
-            overflow: hidden;
             box-shadow: 0 8px 12px 4px rgba(0,0,0,.4);
+            border-radius: 8px;
+            overflow: hidden;
+            padding: 12px;
+            flex-shrink: 0;
             
             animation: card-incoming 1s ease-in-out;
         }
@@ -150,7 +152,7 @@ const TEMPLATE = `
                                         $('<span></span>').text(part)
                                     );
                                 }
-                                else if (part['type'] === 'emote') {
+                                else if (part['type'] === 'emote' || part['type'] === 'cheer') {
                                     msgContainer.append(
                                         $('<span></span>')
                                             .addClass('emoji')
@@ -183,15 +185,21 @@ const TEMPLATE = `
 </body>
 </html>
 `;
-let component = TEMPLATE.split(/{{[A-Z0-9_-]+}}/g).join('');
+let config;
 
 const chatbox = express();
 chatbox.get('/', (req, res) => {
+    let component = TEMPLATE;
+    if (config) {
+        component = TEMPLATE.split('{{CUSTOM_STYLE}}').join(config.component.getStyle('chatbox'));
+    }
+    component = component.split(/{{[A-Z0-9_-]+}}/g).join('');
+
     res.contentType('text/html').send(component);
 });
 
-function setup(config) {
-    component = TEMPLATE.split('{{CUSTOM_STYLE}}').join(config.component.getStyle('chatbox'));
+function setup(configObj) {
+    config = configObj;
 }
 
 module.exports = {
