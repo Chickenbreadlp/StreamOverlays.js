@@ -6,6 +6,11 @@ One such streamlet for example would be a chatbox, which nicely displays your ch
 
 Development on StreamOverlays.js has only just started, but feel free to already suggest features you might want to see in the future.
 
+## Credits
+
+Big thanks to the following people for their contribution:
+- Silly/SillyImpala (Default Alertbox Sound)
+
 ## Boring Programmer Stuff
 
 The following sections are intended for those who want to contribute on the actual source code of the project or interested in running a pre-alpha version of the app.

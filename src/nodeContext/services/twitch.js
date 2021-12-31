@@ -119,6 +119,13 @@ function parseMessage(message, msgInfo, emoteList) {
         }
     }
 
+    return {
+        from: msgInfo['display-name'],
+        color: color,
+        text: parseChatMessage(message, emoteList)
+    }
+}
+function parseChatMessage(message, emoteList) {
     // Split up original chat messages at Emojis and insert Emojis as Objects
     let offset = 0;
     let textSplit = [
@@ -140,11 +147,7 @@ function parseMessage(message, msgInfo, emoteList) {
     // Remove empty message sections
     textSplit = textSplit.filter(entry => typeof entry === 'object' || entry.length > 0);
 
-    return {
-        from: msgInfo['display-name'],
-        color: color,
-        text: textSplit
-    }
+    return textSplit;
 }
 function parseCheerEmotes(splitMessage) {
     const msgCopy = [...splitMessage];
@@ -678,20 +681,32 @@ function startPubSub() {
                         broadcastData('points', broadcastMsg);
                     }
                     else if (topic[0] === 'channel-subscribe-events-v1') {
+                        let subMessage = [];
+
+                        if (msg['sub_message'] && msg['sub_message']['message'] !== '') {
+                            const emoteList = (msg['sub_message']['emotes'] || []).map(emote => {
+                                emote['end'] += emote['start'];
+                                emote['url'] = `https://static-cdn.jtvnw.net/emoticons/v2/${emote['id']}/default/dark/3.0`;
+                                return emote;
+                            });
+
+                            subMessage = parseChatMessage(msg['sub_message']['message'], emoteList);
+                        }
+
                         const broadcastMsg = {
-                            subLevel: msg.sub_plan,
-                            streak: Number(msg.streak_months || 0),
-                            total: Number(msg.cumulative_months || 0),
-                            context: msg.context,
-                            isGift: msg.is_gift,
-                            subMessage: msg.sub_message
+                            subLevel: msg['sub_plan'],
+                            streak: Number(msg['streak_months'] || 0),
+                            total: Number(msg['cumulative_months'] || 0),
+                            context: msg['context'],
+                            isGift: msg['is_gift'],
+                            subMessage
                         };
 
-                        if (msg.is_gift) {
-                            broadcastMsg.userName = msg.recipient_display_name
+                        if (msg['is_gift']) {
+                            broadcastMsg.userName = msg['recipient_display_name']
                         }
                         else {
-                            broadcastMsg.userName = msg.display_name;
+                            broadcastMsg.userName = msg['display_name'];
                         }
 
                         broadcastData('subs', broadcastMsg);

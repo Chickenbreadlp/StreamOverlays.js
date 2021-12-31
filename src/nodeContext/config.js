@@ -45,6 +45,12 @@ const componentStore = {
                 subMessage: '%u is raiding us with %v viewers!',
                 animation: ''
             }
+        },
+        alertSounds: { // null = default
+            cheer: null,
+            host: null,
+            raid: null,
+            sub: null
         }
     }
 };
@@ -185,6 +191,7 @@ function setAlertHighlight(newColor) {
         newColor.match(/^(?:#[0-9a-fA-F]{3}|[0-9a-fA-F]{6})|rgb\((?:[0-9]{1,3},){2}[0-9]{1,3}\)$/)
     ) {
         componentStore.alertbox.highlightColor = newColor;
+        saveComponents();
     }
 }
 function getAlertHighlight() {
@@ -194,10 +201,29 @@ function setAlertConfig(alert, newConfig) {
     const alConf = componentStore.alertbox.alerts[alert];
     if (alConf) {
         patchObjValues(alConf, newConfig);
+        saveComponents();
     }
 }
 function getFullAlertConfig() {
     return { ...componentStore.alertbox.alerts };
+}
+function setAlertSound(alert, path) {
+    const sounds = componentStore.alertbox.alertSounds;
+    if (
+        (
+            sounds[alert] === null ||
+            typeof sounds[alert] === 'string'
+        ) && (
+            path === null ||
+            typeof path === 'string'
+        )
+    ) {
+        sounds[alert] = path;
+        saveComponents();
+    }
+}
+function getAlertSound(alert) {
+    return componentStore.alertbox.alertSounds[alert];
 }
 
 loadComponents();
@@ -220,6 +246,8 @@ module.exports = {
         setAlert: setAlertConfig,
         setAlertHighlight,
         getAlertHighlight,
-        getAlerts: getFullAlertConfig
+        getAlerts: getFullAlertConfig,
+        setSound: setAlertSound,
+        getSound: getAlertSound
     }
 }

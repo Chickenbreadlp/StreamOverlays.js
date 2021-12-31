@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 
 const { title } = require('../../../../package.json');
@@ -102,6 +104,12 @@ const TEMPLATE = `
 </head>
 <body>
     <div id="alerts"></div>
+    <div id="sounds">
+        <audio id="host" src="/alertbox/sounds/host"></audio>
+        <audio id="raid" src="/alertbox/sounds/raid"></audio>
+        <audio id="cheer" src="/alertbox/sounds/cheer"></audio>
+        <audio id="sub" src="/alertbox/sounds/sub"></audio>
+    </div>
     <script>
         $(() => {
             let ws;
@@ -157,7 +165,7 @@ const TEMPLATE = `
                 return strArr;
             }
             
-            function generateCard(iconUrl, titleParts, messageParts) {
+            function generateCard(iconUrl, titleParts, messageParts, soundID) {
                 const card = $('<div></div>')
                     .addClass('alertCard');
                 
@@ -220,6 +228,17 @@ const TEMPLATE = `
                 
                 card.append(textSection);
                 $('#alerts').append(card);
+                
+                if (typeof soundID === 'string' && soundID !== '') {
+                    setTimeout(() => {
+                        const sound = $('#sounds #' + soundID);
+                        for (let i = 0; i < sound.length; i++) {
+                            try {
+                                sound[i].play();
+                            } catch (e) {}
+                        }
+                    }, 200);
+                }
             }
             function clearCards() {
                 return new Promise((resolve) => {
@@ -275,7 +294,8 @@ const TEMPLATE = `
                         processArgs: [
                             url,
                             title,
-                            bitData['text']
+                            bitData['text'],
+                            'cheer'
                         ]
                     });
                 }
@@ -315,7 +335,8 @@ const TEMPLATE = `
                         processArgs: [
                             localConf.animation,
                             title,
-                            msg
+                            msg,
+                            isRaid ? 'raid' : 'host'
                         ]
                     });
                 }
@@ -458,9 +479,42 @@ alertbox.get('/', (req, res) => {
         );
         component = component.split('{{HIGHLIGHT_COLOR}}').join(config.component.getAlertHighlight());
     }
-    component = component.split(/{{[A-Z0-9_-]+}}/g).join('');
+    else {
+        component = component.split(/{{[A-Z0-9_-]+}}/g).join('');
+    }
 
     res.contentType('text/html').send(component);
+});
+
+alertbox.get('/sounds/:soundId', (req, res) => {
+    let fileSent = false;
+    res.set('Cache-Control', 'no-cache');
+
+    if (config) {
+        // Get the configured audio source
+        const soundId = req.params.soundId || '';
+        const filePath = config.component.getSound(soundId);
+
+        // Send out the file if a sound overwrite was configured and the file still exists
+        if (
+            typeof filePath === 'string' &&
+            fs.existsSync(filePath) &&
+            fs.lstatSync(filePath).isFile()
+        ) {
+
+            res.sendFile(filePath);
+            fileSent = true;
+        }
+    }
+
+    // Send the default audio-file if no overwrite was found, the file didn't exist of the config isn't setup...
+    if (!fileSent) {
+        res.sendFile('defaultAlert.wav', {
+            // Supressing an ESLint error here, as it doesn't know what to do with the Vue-Electron "__static" Constant
+            // eslint-disable-next-line no-undef
+            root: path.join(__static)
+        });
+    }
 });
 
 function setup(configObj) {

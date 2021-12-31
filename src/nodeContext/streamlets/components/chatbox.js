@@ -193,7 +193,9 @@ chatbox.get('/', (req, res) => {
     if (config) {
         component = TEMPLATE.split('{{CUSTOM_STYLE}}').join(config.component.getStyle('chatbox'));
     }
-    component = component.split(/{{[A-Z0-9_-]+}}/g).join('');
+    else {
+        component = component.split(/{{[A-Z0-9_-]+}}/g).join('');
+    }
 
     res.contentType('text/html').send(component);
 });
