@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('ipc', {
     send: (channel, data) => {
         // whitelist channels
-        let validChannels = ['close', 'minimize', 'maximize', 'auth', 'service'];
+        let validChannels = ['close', 'minimize', 'maximize', 'auth', 'service', 'config'];
         if (validChannels.includes(channel)) {
             ipcRenderer.send(channel, data);
         }

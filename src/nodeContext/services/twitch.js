@@ -694,19 +694,19 @@ function startPubSub() {
                         }
 
                         const broadcastMsg = {
-                            subLevel: msg['sub_plan'],
                             streak: Number(msg['streak_months'] || 0),
                             total: Number(msg['cumulative_months'] || 0),
-                            context: msg['context'],
+                            isResub: msg['context'] === 'resub',
+                            isPrime: String(msg['sub_plan']).toLowerCase() === 'prime',
                             isGift: msg['is_gift'],
                             subMessage
                         };
 
                         if (msg['is_gift']) {
-                            broadcastMsg.userName = msg['recipient_display_name']
+                            broadcastMsg.userName = msg['recipient_display_name'] || msg['recipient_user_name'];
                         }
                         else {
-                            broadcastMsg.userName = msg['display_name'];
+                            broadcastMsg.userName = msg['display_name'] || msg['user_name'];
                         }
 
                         broadcastData('subs', broadcastMsg);

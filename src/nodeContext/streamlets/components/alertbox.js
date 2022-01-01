@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
+const constants = require('../../../constants');
 
 const { title } = require('../../../../package.json');
 
@@ -70,7 +71,7 @@ const TEMPLATE = `
             animation-fill-mode: both !important;
         }
         .icon {
-            width: 112px;
+            max-width: 112px;
             display: block;
             object-fit: contain;
             object-position: 0 0;
@@ -105,10 +106,10 @@ const TEMPLATE = `
 <body>
     <div id="alerts"></div>
     <div id="sounds">
-        <audio id="host" src="/alertbox/sounds/host"></audio>
-        <audio id="raid" src="/alertbox/sounds/raid"></audio>
-        <audio id="cheer" src="/alertbox/sounds/cheer"></audio>
-        <audio id="sub" src="/alertbox/sounds/sub"></audio>
+        <audio id="host" src="/alertbox/sound/host"></audio>
+        <audio id="raid" src="/alertbox/sound/raid"></audio>
+        <audio id="cheer" src="/alertbox/sound/cheer"></audio>
+        <audio id="sub" src="/alertbox/sound/sub"></audio>
     </div>
     <script>
         $(() => {
@@ -116,6 +117,28 @@ const TEMPLATE = `
             let reconnectInterval;
             const queue = [];
             
+            const defaultBits = {
+                1: {
+                    url: '${constants.twitchBitURL}gray/4',
+                    color: '#a1a1a1'
+                },
+                100: {
+                    url: '${constants.twitchBitURL}purple/4',
+                    color: '#be64ff'
+                },
+                1000: {
+                    url: '${constants.twitchBitURL}green/4',
+                    color: '#01f0c5'
+                },
+                5000: {
+                    url: '${constants.twitchBitURL}blue/4',
+                    color: '#559eff'
+                },
+                10000: {
+                    url: '${constants.twitchBitURL}red/4',
+                    color: '#ed3841'
+                },
+            };
             const injectedConf = '{{ALERT_CONFIG}}';
             const injectedColor = '{{HIGHLIGHT_COLOR}}';
             let config;
@@ -128,20 +151,23 @@ const TEMPLATE = `
                     bits: {
                         message: '%u Cheer Alert',
                         messageAnon: 'Anon Cheer Alert',
-                        animation: {
-                            1: {
-                                url: '',
-                                color: ''
-                            }
-                        }
+                        customAnim: false
                     },
                     host: {
                         message: '%u host',
-                        subMessage: '%v viewers'
+                        subMessage: '%v viewers',
+                        customAnim: false
                     },
                     raid: {
                         message: '%u raid',
-                        subMessage: '%v viewers'
+                        subMessage: '%v viewers',
+                        customAnim: false
+                    },
+                    sub: {
+                        message: '%u sub',
+                        resubMessage: '%u resub; %s streak',
+                        placeholder: '%t total',
+                        customAnim: false
                     }
                 };
             }
@@ -258,15 +284,19 @@ const TEMPLATE = `
                 */
                 const bitAmount = Number(bitData['bits']);
                 if (!isNaN(bitAmount) && bitAmount > 0) {
-                    const levels = Object.keys(config.bits.animation);
+                    const levels = Object.keys(defaultBits);
                     levels.sort((a,b) => b-a);
                     let bitColor;
                     let url = null;
                     for (const level of levels) {
                         if (bitAmount >= level && url === null) {
-                            url = config.bits.animation[level].url;
-                            bitColor = config.bits.animation[level].color;
+                            url = defaultBits[level].url;
+                            bitColor = defaultBits[level].color;
                         }
+                    }
+                    
+                    if (config.bits.customAnim) {
+                        url = '/alertbox/animation/cheer';
                     }
                     
                     let title;
@@ -328,18 +358,79 @@ const TEMPLATE = `
                         text: data['viewers'],
                         class: 'viewerCount'
                     });
+                    
+                    let anim = null;
+                    if (localConf.customAnim) {
+                        anim = '/alertbox/animation/';
+                        anim += isRaid ? 'raid' : 'host';
+                    }
 
                     queue.push({
                         inProgress: false,
                         process: generateCard,
                         processArgs: [
-                            localConf.animation,
+                            anim,
                             title,
                             msg,
                             isRaid ? 'raid' : 'host'
                         ]
                     });
                 }
+            }
+            function handleSubAlert(subData) {
+                /* {
+                    streak: Number(msg['streak_months'] || 0),
+                    total: Number(msg['cumulative_months'] || 0),
+                    isResub: msg['context'] === 'resub',
+                    isPrime: String(msg['sub_plan']).toLowerCase() === 'prime',
+                    isGift: msg['is_gift'],
+                    subMessage -- Formatted like any other chat message
+                    userName
+                } */
+                
+                let msg = subData['subMessage'];
+                if (!msg) {
+                    msg = [];
+                }
+                
+                let title = [];
+                if (subData['isResub'] && (subData['streak'] || 0) > 0) {
+                    title.push(config.sub.resubMessage);
+                }
+                else {
+                    title.push(config.sub.message);
+                }
+                title = objReplace(title, 'u', {
+                    type: 'highlight',
+                    text: subData['userName'],
+                    class: 'user'
+                });
+                title = objReplace(title, 't', {
+                    type: 'highlight',
+                    text: subData['total'],
+                    class: 'subTotal'
+                });
+                title = objReplace(title, 's', {
+                    type: 'highlight',
+                    text: subData['streak'],
+                    class: 'subStreak'
+                });
+
+                let anim = null;
+                if (config.customAnim) {
+                    anim = '/alertbox/animation/sub';
+                }
+
+                queue.push({
+                    inProgress: false,
+                    process: generateCard,
+                    processArgs: [
+                        anim,
+                        title,
+                        msg,
+                        'sub'
+                    ]
+                });
             }
             
             function digestQueue() {
@@ -396,6 +487,9 @@ const TEMPLATE = `
                                 case 'raid':
                                     handleHostAlert(msgData, true);
                                     break;
+                                case 'subs':
+                                    handleSubAlert(msgData);
+                                    break;
                             }
                             
                             digestQueue();
@@ -414,6 +508,47 @@ const TEMPLATE = `
             
             setupWS();
             
+            setTimeout(() => {
+                handleSubAlert({
+                    streak: 0,
+                    total: 0,
+                    isResub: false,
+                    isPrime: false,
+                    isGift: false,
+                    subMessage: ['This is my first sub'],
+                    userName: 'CBStream'
+                });
+                handleSubAlert({
+                    streak: 3,
+                    total: 9,
+                    isResub: true,
+                    isPrime: false,
+                    isGift: false,
+                    subMessage: ['Resub baby!'],
+                    userName: 'Chickenbread'
+                });
+                handleSubAlert({
+                    streak: 0,
+                    total: 0,
+                    isResub: false,
+                    isPrime: false,
+                    isGift: true,
+                    subMessage: [],
+                    userName: 'Xaphais'
+                });
+                handleSubAlert({
+                    streak: 0,
+                    total: 5,
+                    isResub: false,
+                    isPrime: true,
+                    isGift: false,
+                    subMessage: [],
+                    userName: 'CryptForce'
+                });
+
+                console.log(queue);
+                digestQueue();
+            }, 500);
             setTimeout(() => {
                 handleHostAlert({
                     username: 'CBStream',
@@ -486,7 +621,7 @@ alertbox.get('/', (req, res) => {
     res.contentType('text/html').send(component);
 });
 
-alertbox.get('/sounds/:soundId', (req, res) => {
+alertbox.get('/sound/:soundId', (req, res) => {
     let fileSent = false;
     res.set('Cache-Control', 'no-cache');
 
@@ -510,6 +645,36 @@ alertbox.get('/sounds/:soundId', (req, res) => {
     // Send the default audio-file if no overwrite was found, the file didn't exist of the config isn't setup...
     if (!fileSent) {
         res.sendFile('defaultAlert.wav', {
+            // Supressing an ESLint error here, as it doesn't know what to do with the Vue-Electron "__static" Constant
+            // eslint-disable-next-line no-undef
+            root: path.join(__static)
+        });
+    }
+});
+alertbox.get('/animation/:animationId', (req, res) => {
+    let fileSent = false;
+    res.set('Cache-Control', 'no-cache');
+
+    if (config) {
+        // Get the configured audio source
+        const animationId = req.params.animationId || '';
+        const filePath = config.component.getAnimation(animationId);
+
+        // Send out the file if a sound overwrite was configured and the file still exists
+        if (
+            typeof filePath === 'string' &&
+            fs.existsSync(filePath) &&
+            fs.lstatSync(filePath).isFile()
+        ) {
+
+            res.sendFile(filePath);
+            fileSent = true;
+        }
+    }
+
+    // Send the default audio-file if no overwrite was found, the file didn't exist of the config isn't setup...
+    if (!fileSent) {
+        res.sendFile('placeholder.png', {
             // Supressing an ESLint error here, as it doesn't know what to do with the Vue-Electron "__static" Constant
             // eslint-disable-next-line no-undef
             root: path.join(__static)

@@ -12,41 +12,32 @@ const componentStore = {
             bits: {
                 message: 'Thanks for the %b bits %u!',
                 messageAnon: 'Thanks for the %b bits Anonymous user!',
-                animation: {
-                    1: {
-                        url: `${constants.twitchBitURL}gray/4`,
-                        color: '#a1a1a1'
-                    },
-                    100: {
-                        url: `${constants.twitchBitURL}purple/4`,
-                        color: '#be64ff'
-                    },
-                    1000: {
-                        url: `${constants.twitchBitURL}green/4`,
-                        color: '#01f0c5'
-                    },
-                    5000: {
-                        url: `${constants.twitchBitURL}blue/4`,
-                        color: '#559eff'
-                    },
-                    10000: {
-                        url: `${constants.twitchBitURL}red/4`,
-                        color: '#ed3841'
-                    },
-                }
+                customAnim: false
             },
             host: {
                 message: 'Thanks for the host %u!',
                 subMessage: '%u is hosting us with %v viewers!',
-                animation: ''
+                customAnim: false
             },
             raid: {
                 message: 'Thanks for the raid %u!',
                 subMessage: '%u is raiding us with %v viewers!',
-                animation: ''
+                customAnim: false
+            },
+            sub: {
+                message: 'Thanks for the Sub %u!',
+                resubMessage: 'Thanks for the Resub %u with a %s month streak!',
+                placeholder: '%u has subbed for a total of %t months',
+                customAnim: false
             }
         },
         alertSounds: { // null = default
+            cheer: null,
+            host: null,
+            raid: null,
+            sub: null
+        },
+        alertAnimations: { // null = none/default
             cheer: null,
             host: null,
             raid: null,
@@ -89,7 +80,15 @@ function patchObjValues(orgObj, newObj) {
     }
 }
 function saveComponents() {
-    fs.writeFileSync('./config.json', JSON.stringify(componentStore), {encoding: 'utf8'});
+    let fileData;
+    if (constants.isDevelopment) {
+        fileData = JSON.stringify(componentStore, null, 2);
+    }
+    else {
+        fileData = JSON.stringify(componentStore);
+    }
+
+    fs.writeFileSync('./config.json', fileData, {encoding: 'utf8'});
 }
 function loadComponents() {
     if (fs.existsSync('./config.json')) {
@@ -225,6 +224,24 @@ function setAlertSound(alert, path) {
 function getAlertSound(alert) {
     return componentStore.alertbox.alertSounds[alert];
 }
+function setAlertAnimation(alert, path) {
+    const animations = componentStore.alertbox.alertAnimations;
+    if (
+        (
+            animations[alert] === null ||
+            typeof animations[alert] === 'string'
+        ) && (
+            path === null ||
+            typeof path === 'string'
+        )
+    ) {
+        animations[alert] = path;
+        saveComponents();
+    }
+}
+function getAlertAnimation(alert) {
+    return componentStore.alertbox.alertAnimations[alert];
+}
 
 loadComponents();
 
@@ -241,6 +258,7 @@ module.exports = {
         get: getUserInfo
     },
     component: {
+        saveAll: saveComponents,
         setStyle: setComponentStyle,
         getStyle: getComponentStyle,
         setAlert: setAlertConfig,
@@ -248,6 +266,8 @@ module.exports = {
         getAlertHighlight,
         getAlerts: getFullAlertConfig,
         setSound: setAlertSound,
-        getSound: getAlertSound
+        getSound: getAlertSound,
+        setAnimation: setAlertAnimation,
+        getAnimation: getAlertAnimation
     }
 }

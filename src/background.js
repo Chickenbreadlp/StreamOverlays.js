@@ -191,7 +191,7 @@ ipcMain.on('auth', (event, args) => {
         break;
     }
   }
-})
+});
 ipcMain.on('service', (event, args) => {
   if (win && constants.isSupported(args.service)) {
     const response = {
@@ -206,7 +206,16 @@ ipcMain.on('service', (event, args) => {
       win.webContents.send('service', response);
     }
   }
-})
+});
+ipcMain.on('config', (event, args) => {
+  if (args.cmd && typeof args.cmd === 'string') {
+    switch (args.cmd) {
+      case 'generateFile':
+        config.component.saveAll();
+        break;
+    }
+  }
+});
 
 // Exit cleanly on request from parent process in development mode.
 if (isDevelopment) {
